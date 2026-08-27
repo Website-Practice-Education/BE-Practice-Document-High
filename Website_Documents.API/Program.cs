@@ -38,6 +38,20 @@ builder.Services.AddScoped<IStudyService, StudyService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ILearningPlanService, LearningPlanService>();
 
+// Collaborative Study Room Services
+builder.Services.AddScoped<ILiveSessionService, LiveSessionService>();
+builder.Services.AddScoped<IWhiteboardService, WhiteboardService>();
+
+// Register Repositories
+builder.Services.AddScoped<ILiveSessionRepository, LiveSessionRepository>();
+builder.Services.AddScoped<ILiveSessionMemberRepository, LiveSessionMemberRepository>();
+builder.Services.AddScoped<ISessionActivityRepository, SessionActivityRepository>();
+builder.Services.AddScoped<ISessionChatRepository, SessionChatRepository>();
+builder.Services.AddScoped<ISessionWhiteboardRepository, SessionWhiteboardRepository>();
+builder.Services.AddScoped<ISessionSharedQuestionRepository, SessionSharedQuestionRepository>();
+builder.Services.AddScoped<ISessionParticipantAnswerRepository, SessionParticipantAnswerRepository>();
+builder.Services.AddScoped<ISessionLeaderboardRepository, SessionLeaderboardRepository>();
+
 // SignalR
 builder.Services.AddSignalR();
 
@@ -115,5 +129,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<LiveSessionHub>("/hubs/live-session");
 
 app.Run();

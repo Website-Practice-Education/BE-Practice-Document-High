@@ -60,6 +60,24 @@ public partial class BookstoreDbContext : DbContext
 
     public virtual DbSet<Friendship> Friendships { get; set; }
 
+    public virtual DbSet<LiveStudySession> LiveStudySessions { get; set; }
+
+    public virtual DbSet<LiveSessionMember> LiveSessionMembers { get; set; }
+
+    public virtual DbSet<SessionActivity> SessionActivities { get; set; }
+
+    public virtual DbSet<SessionWhiteboard> SessionWhiteboards { get; set; }
+
+    public virtual DbSet<SessionChatMessage> SessionChatMessages { get; set; }
+
+    public virtual DbSet<SessionSharedQuestion> SessionSharedQuestions { get; set; }
+
+    public virtual DbSet<SessionParticipantAnswer> SessionParticipantAnswers { get; set; }
+
+    public virtual DbSet<SessionLeaderboard> SessionLeaderboards { get; set; }
+
+    public virtual DbSet<SessionInvitation> SessionInvitations { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Achievement>(entity =>
@@ -405,6 +423,203 @@ public partial class BookstoreDbContext : DbContext
             entity.HasOne(d => d.Friend).WithMany()
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("friendships_friend_id_fkey");
+        });
+
+        modelBuilder.Entity<LiveStudySession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("live_study_sessions_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.DifficultyLevel).HasDefaultValue((short)1);
+            entity.Property(e => e.QuestionCount).HasDefaultValue(10);
+            entity.Property(e => e.SessionType).HasDefaultValueSql("'practice'::character varying");
+            entity.Property(e => e.Status).HasDefaultValueSql("'waiting'::character varying");
+            entity.Property(e => e.MaxParticipants).HasDefaultValue(20);
+            entity.Property(e => e.CurrentParticipants).HasDefaultValue(0);
+            entity.Property(e => e.TimeLimitMinutes).HasDefaultValue(30);
+
+            entity.HasOne(d => d.Space).WithMany(p => p.LiveSessions)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("live_sessions_space_id_fkey");
+
+            entity.HasOne(d => d.Host).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("live_sessions_host_id_fkey");
+
+            entity.HasOne(d => d.Subject).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("live_sessions_subject_id_fkey");
+
+            entity.HasOne(d => d.Topic).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("live_sessions_topic_id_fkey");
+        });
+
+        modelBuilder.Entity<LiveSessionMember>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("live_session_members_pkey");
+
+            entity.Property(e => e.JoinedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.LastActivityAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.Role).HasDefaultValueSql("'participant'::character varying");
+            entity.Property(e => e.Status).HasDefaultValueSql("'joined'::character varying");
+            entity.Property(e => e.IsReady).HasDefaultValue(false);
+            entity.Property(e => e.QuestionsAnswered).HasDefaultValue(0);
+            entity.Property(e => e.CorrectAnswers).HasDefaultValue(0);
+            entity.Property(e => e.TotalScore).HasDefaultValue(0);
+            entity.Property(e => e.CurrentStreak).HasDefaultValue(0);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.Members)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_members_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_members_user_id_fkey");
+        });
+
+        modelBuilder.Entity<SessionActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_activities_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Session).WithMany(p => p.Activities)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_activities_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("session_activities_user_id_fkey");
+        });
+
+        modelBuilder.Entity<SessionWhiteboard>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_whiteboard_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.PositionX).HasDefaultValue(0);
+            entity.Property(e => e.PositionY).HasDefaultValue(0);
+            entity.Property(e => e.LayerIndex).HasDefaultValue(0);
+            entity.Property(e => e.IsLocked).HasDefaultValue(false);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.WhiteboardItems)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("whiteboard_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("whiteboard_user_id_fkey");
+        });
+
+        modelBuilder.Entity<SessionChatMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_chat_messages_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.MessageType).HasDefaultValueSql("'text'::character varying");
+            entity.Property(e => e.IsPinned).HasDefaultValue(false);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.ChatMessages)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_chat_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_chat_user_id_fkey");
+
+            entity.HasOne(d => d.ReplyTo).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("session_chat_reply_to_fkey");
+        });
+
+        modelBuilder.Entity<SessionSharedQuestion>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_shared_questions_pkey");
+
+            entity.Property(e => e.SharedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.OrderIndex).HasDefaultValue(0);
+            entity.Property(e => e.IsCurrent).HasDefaultValue(false);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.SharedQuestions)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("shared_questions_session_id_fkey");
+
+            entity.HasOne(d => d.Question).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("shared_questions_question_id_fkey");
+
+            entity.HasOne(d => d.SharedByUser).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("shared_questions_shared_by_fkey");
+        });
+
+        modelBuilder.Entity<SessionParticipantAnswer>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_participant_answers_pkey");
+
+            entity.Property(e => e.AnsweredAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.TimeSpentSeconds).HasDefaultValue(0);
+            entity.Property(e => e.PointsEarned).HasDefaultValue(0);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.ParticipantAnswers)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("participant_answers_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("participant_answers_user_id_fkey");
+
+            entity.HasOne(d => d.Question).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("participant_answers_question_id_fkey");
+
+            entity.HasOne(d => d.SelectedOption).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("participant_answers_option_id_fkey");
+        });
+
+        modelBuilder.Entity<SessionLeaderboard>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_leaderboard_pkey");
+
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.RankPosition).HasDefaultValue(0);
+            entity.Property(e => e.TotalScore).HasDefaultValue(0);
+            entity.Property(e => e.QuestionsCorrect).HasDefaultValue(0);
+            entity.Property(e => e.TotalQuestions).HasDefaultValue(0);
+            entity.Property(e => e.AverageTimeSeconds).HasDefaultValue(0);
+            entity.Property(e => e.LongestStreak).HasDefaultValue(0);
+
+            entity.HasOne(d => d.Session).WithMany(p => p.Leaderboard)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("leaderboard_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("leaderboard_user_id_fkey");
+        });
+
+        modelBuilder.Entity<SessionInvitation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("session_invitations_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.Status).HasDefaultValueSql("'pending'::character varying");
+
+            entity.HasOne(d => d.Session).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_invitations_session_id_fkey");
+
+            entity.HasOne(d => d.Inviter).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("session_invitations_invited_by_fkey");
+
+            entity.HasOne(d => d.InvitedUser).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("session_invitations_invited_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

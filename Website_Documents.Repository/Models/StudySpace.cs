@@ -45,4 +45,5 @@ public class StudySpace
 
     public virtual ICollection<StudySpaceMember> Members { get; set; } = new List<StudySpaceMember>();
     public virtual ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+    public virtual ICollection<LiveStudySession> LiveSessions { get; set; } = new List<LiveStudySession>();
 }
