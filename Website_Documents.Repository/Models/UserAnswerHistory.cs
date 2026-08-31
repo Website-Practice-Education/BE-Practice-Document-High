@@ -8,11 +8,15 @@ namespace Website_Documents.Repository.Models;
 
 [Table("user_answer_history")]
 [Index("AttemptId", Name = "idx_answer_history_attempt")]
+[Index("UserId", Name = "idx_answer_history_user")]
 public partial class UserAnswerHistory
 {
     [Key]
     [Column("id")]
     public long Id { get; set; }
+
+    [Column("user_id")]
+    public long? UserId { get; set; }
 
     [Column("attempt_id")]
     public long AttemptId { get; set; }
@@ -30,8 +34,18 @@ public partial class UserAnswerHistory
     [Column("answer_text")]
     public string? AnswerText { get; set; }
 
+    [Column("is_correct")]
+    public bool? IsCorrect { get; set; }
+
+    [Column("answered_at")]
+    public DateTime? AnsweredAt { get; set; }
+
     [Column("changed_at")]
     public DateTime? ChangedAt { get; set; }
+
+    [ForeignKey("UserId")]
+    [InverseProperty("UserAnswerHistories")]
+    public virtual User? User { get; set; }
 
     [ForeignKey("AttemptId")]
     [InverseProperty("UserAnswerHistories")]

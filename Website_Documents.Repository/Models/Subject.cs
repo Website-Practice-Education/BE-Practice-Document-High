@@ -42,4 +42,13 @@ public partial class Subject
 
     [InverseProperty("Subject")]
     public virtual ICollection<UserAttempt> UserAttempts { get; set; } = new List<UserAttempt>();
+
+    [InverseProperty("Subject")]
+    public virtual ICollection<LearningPlanItem> LearningPlanItems { get; set; } = new List<LearningPlanItem>();
+
+    [InverseProperty("Subject")]
+    public virtual ICollection<StudySession> StudySessions { get; set; } = new List<StudySession>();
+
+    [InverseProperty("Subject")]
+    public virtual ICollection<SharedDocument> SharedDocuments { get; set; } = new List<SharedDocument>();
 }

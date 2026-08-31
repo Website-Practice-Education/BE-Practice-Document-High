@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Website_Documents.API.DTOs;
 
 namespace Website_Documents.Service.Interfaces;
 
@@ -19,29 +18,29 @@ public class ExamAttemptResponse
 {
     public long Id { get; set; }
     public long UserId { get; set; }
-    public long ExamId { get; set; }
+    public long? ExamId { get; set; }
     public string? ExamTitle { get; set; }
     public decimal? Score { get; set; }
-    public int TotalCorrect { get; set; }
-    public int TotalQuestions { get; set; }
+    public int? TotalCorrect { get; set; }
+    public int? TotalQuestions { get; set; }
     public string Status { get; set; } = "in_progress";
-    public DateTime StartedAt { get; set; }
+    public DateTime? StartedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
-    public int TimeSpentSeconds { get; set; }
+    public int? TimeSpentSeconds { get; set; }
 }
 
 public class ExamResultResponse
 {
     public long AttemptId { get; set; }
     public string ExamTitle { get; set; } = string.Empty;
-    public decimal Score { get; set; }
-    public decimal Percentage => TotalQuestions > 0 ? (decimal)TotalCorrect / TotalQuestions * 100 : 0;
-    public int TotalCorrect { get; set; }
-    public int TotalQuestions { get; set; }
-    public string Grade => Percentage >= 90 ? "A" : Percentage >= 80 ? "B" : Percentage >= 70 ? "C" : Percentage >= 60 ? "D" : "F";
-    public DateTime StartedAt { get; set; }
-    public DateTime SubmittedAt { get; set; }
-    public int TimeSpentSeconds { get; set; }
+    public decimal? Score { get; set; }
+    public decimal? Percentage => TotalQuestions > 0 && TotalQuestions.HasValue ? (decimal)(TotalCorrect ?? 0) / TotalQuestions.Value * 100 : 0;
+    public int? TotalCorrect { get; set; }
+    public int? TotalQuestions { get; set; }
+    public string Grade => (Percentage ?? 0) >= 90 ? "A" : (Percentage ?? 0) >= 80 ? "B" : (Percentage ?? 0) >= 70 ? "C" : (Percentage ?? 0) >= 60 ? "D" : "F";
+    public DateTime? StartedAt { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public int? TimeSpentSeconds { get; set; }
     public List<QuestionResultDto> QuestionResults { get; set; } = new();
 }
 

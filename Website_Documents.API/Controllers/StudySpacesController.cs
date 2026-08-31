@@ -181,6 +181,52 @@ public class StudySpacesController : ControllerBase
         return Ok(ApiResponse<object>.SuccessResponse(null, "Space deleted successfully"));
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateSpace(long id, [FromBody] UpdateSpaceRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+
+        var success = await _studySpaceService.UpdateSpaceAsync(id, userId.Value, request.Name, request.Description, request.SpaceType);
+        if (!success)
+            return BadRequest(ApiResponse<object>.ErrorResponse("Could not update space"));
+
+        var space = await _studySpaceService.GetSpaceByIdAsync(id);
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            id = space!.Id,
+            name = space.Name,
+            description = space.Description,
+            spaceType = space.SpaceType,
+            inviteCode = space.InviteCode,
+            maxMembers = space.MaxMembers,
+            createdAt = space.CreatedAt
+        }, "Space updated successfully"));
+    }
+
+    [HttpGet("my-created")]
+    public async Task<IActionResult> GetMyCreatedSpaces()
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+
+        var spaces = await _studySpaceService.GetUserSpacesAsync(userId.Value);
+        var ownedSpaces = spaces.Where(s => s.CreatedBy == userId.Value).ToList();
+
+        return Ok(ApiResponse<object>.SuccessResponse(ownedSpaces.Select(s => new
+        {
+            id = s.Id,
+            name = s.Name,
+            description = s.Description,
+            spaceType = s.SpaceType,
+            memberCount = s.Members?.Count ?? 0,
+            createdAt = s.CreatedAt,
+            creatorName = s.Creator?.FullName
+        })));
+    }
+
     private long? GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -205,4 +251,11 @@ public class JoinSpaceRequest
 public class JoinByCodeRequest
 {
     public string InviteCode { get; set; } = string.Empty;
+}
+
+public class UpdateSpaceRequest
+{
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public string? SpaceType { get; set; }
 }

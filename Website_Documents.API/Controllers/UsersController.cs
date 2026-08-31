@@ -13,10 +13,12 @@ namespace Website_Documents.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IEmailService _emailService;
 
-    public UsersController(IUserService userService)
+    public UsersController(IUserService userService, IEmailService emailService)
     {
         _userService = userService;
+        _emailService = emailService;
     }
 
     // ===== Basic CRUD =====
@@ -95,12 +97,24 @@ public class UsersController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
-        var token = await _userService.GenerateResetTokenAsync(request.Email);
-        if (token == null)
+        var user = await _userService.GetUserByEmailAsync(request.Email);
+        if (user == null)
             return NotFound(new { message = "User with this email not found" });
 
-        // In production, send email with reset link
-        return Ok(new { message = "Password reset token generated", token });
+        var token = await _userService.GenerateResetTokenAsync(request.Email);
+        if (token == null)
+            return BadRequest(new { message = "Failed to generate reset token" });
+
+        // Build reset link (frontend URL)
+        var resetLink = $"http://localhost:3000/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(request.Email)}";
+
+        // Send email with reset link
+        var emailSent = await _emailService.SendPasswordResetEmailAsync(request.Email, resetLink);
+
+        if (emailSent)
+            return Ok(new { message = "Password reset email sent successfully", email = request.Email });
+        else
+            return Ok(new { message = "Password reset token generated but email failed to send", token });
     }
 
     [HttpPost("reset-password")]

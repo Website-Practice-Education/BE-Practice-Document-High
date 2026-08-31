@@ -5,23 +5,6 @@ namespace Website_Documents.API.DTOs;
 
 // ===== Request DTOs =====
 
-public class ChangePasswordRequest
-{
-    [Required]
-    public string CurrentPassword { get; set; } = string.Empty;
-
-    [Required]
-    [MinLength(6)]
-    public string NewPassword { get; set; } = string.Empty;
-}
-
-public class UpdateProfileRequest
-{
-    public string? FullName { get; set; }
-    public short? Grade { get; set; }
-    public string? AvatarUrl { get; set; }
-}
-
 public class UpdateRoleRequest
 {
     [Required]

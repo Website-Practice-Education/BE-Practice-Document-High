@@ -58,4 +58,10 @@ public partial class Topic
 
     [InverseProperty("Topic")]
     public virtual ICollection<UserTopicProgress> UserTopicProgresses { get; set; } = new List<UserTopicProgress>();
+
+    [InverseProperty("Topic")]
+    public virtual ICollection<LearningPlanItem> LearningPlanItems { get; set; } = new List<LearningPlanItem>();
+
+    [InverseProperty("Topic")]
+    public virtual ICollection<SharedDocument> SharedDocuments { get; set; } = new List<SharedDocument>();
 }

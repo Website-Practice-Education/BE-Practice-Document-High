@@ -9,6 +9,10 @@ using Website_Documents.Repository.Interfaces;
 using Website_Documents.Repository.Models;
 using Website_Documents.Service.Interfaces;
 
+// Type aliases to resolve ambiguity between Repository.Models and Service.Interfaces
+using RepoModels = Website_Documents.Repository.Models;
+using ServiceModels = Website_Documents.Service.Interfaces;
+
 namespace Website_Documents.Service;
 
 public class ReviewService : IReviewService
@@ -24,7 +28,7 @@ public class ReviewService : IReviewService
 
     // ===== Spaced Repetition System =====
 
-    public async Task<ReviewCard> CreateReviewCardAsync(long userId, long questionId)
+    public async Task<ServiceModels.ReviewCard> CreateReviewCardAsync(long userId, long questionId)
     {
         var existingCard = await _context.ReviewCards
             .FirstOrDefaultAsync(c => c.UserId == userId && c.QuestionId == questionId);
@@ -32,7 +36,7 @@ public class ReviewService : IReviewService
         if (existingCard != null)
             return MapToReviewCard(existingCard);
 
-        var card = new ReviewCard
+        var card = new RepoModels.ReviewCard
         {
             UserId = userId,
             QuestionId = questionId,
@@ -50,7 +54,7 @@ public class ReviewService : IReviewService
         return MapToReviewCard(card);
     }
 
-    public async Task<ReviewCard?> GetReviewCardAsync(long userId, long questionId)
+    public async Task<ServiceModels.ReviewCard?> GetReviewCardAsync(long userId, long questionId)
     {
         var card = await _context.ReviewCards
             .FirstOrDefaultAsync(c => c.UserId == userId && c.QuestionId == questionId);
@@ -58,7 +62,7 @@ public class ReviewService : IReviewService
         return card == null ? null : MapToReviewCard(card);
     }
 
-    public async Task<ReviewCard> UpdateReviewAsync(long userId, long questionId, ReviewRating rating)
+    public async Task<ServiceModels.ReviewCard> UpdateReviewAsync(long userId, long questionId, ServiceModels.ReviewRating rating)
     {
         var card = await _context.ReviewCards
             .FirstOrDefaultAsync(c => c.UserId == userId && c.QuestionId == questionId);
@@ -72,9 +76,9 @@ public class ReviewService : IReviewService
         return MapToReviewCard(card);
     }
 
-    private async Task<ReviewCard> CreateReviewCardEntityAsync(long userId, long questionId)
+    private async Task<RepoModels.ReviewCard> CreateReviewCardEntityAsync(long userId, long questionId)
     {
-        var card = new ReviewCard
+        var card = new RepoModels.ReviewCard
         {
             UserId = userId,
             QuestionId = questionId,
@@ -90,26 +94,26 @@ public class ReviewService : IReviewService
         return card;
     }
 
-    private ReviewCard CalculateNextReview(ReviewCard card, ReviewRating rating)
+    private RepoModels.ReviewCard CalculateNextReview(RepoModels.ReviewCard card, ServiceModels.ReviewRating rating)
     {
         card.LastReviewDate = DateTime.UtcNow;
         card.RepetitionCount++;
 
         card.EaseFactor = rating switch
         {
-            ReviewRating.Again => Math.Max(1.3m, card.EaseFactor - 0.2m),
-            ReviewRating.Hard => Math.Max(1.3m, card.EaseFactor - 0.15m),
-            ReviewRating.Good => card.EaseFactor,
-            ReviewRating.Easy => Math.Min(2.5m, card.EaseFactor + 0.15m),
+            ServiceModels.ReviewRating.Again => Math.Max(1.3m, card.EaseFactor - 0.2m),
+            ServiceModels.ReviewRating.Hard => Math.Max(1.3m, card.EaseFactor - 0.15m),
+            ServiceModels.ReviewRating.Good => card.EaseFactor,
+            ServiceModels.ReviewRating.Easy => Math.Min(2.5m, card.EaseFactor + 0.15m),
             _ => card.EaseFactor
         };
 
         card.IntervalDays = rating switch
         {
-            ReviewRating.Again => 1,
-            ReviewRating.Hard => Math.Max(1, (int)(card.IntervalDays * 1.2m * (card.EaseFactor / 2.5m))),
-            ReviewRating.Good => (int)(card.IntervalDays * card.EaseFactor),
-            ReviewRating.Easy => (int)(card.IntervalDays * card.EaseFactor * 1.3m),
+            ServiceModels.ReviewRating.Again => 1,
+            ServiceModels.ReviewRating.Hard => Math.Max(1, (int)(card.IntervalDays * 1.2m * (card.EaseFactor / 2.5m))),
+            ServiceModels.ReviewRating.Good => (int)(card.IntervalDays * card.EaseFactor),
+            ServiceModels.ReviewRating.Easy => (int)(card.IntervalDays * card.EaseFactor * 1.3m),
             _ => card.IntervalDays
         };
 
@@ -121,7 +125,7 @@ public class ReviewService : IReviewService
         return card;
     }
 
-    public async Task<List<ReviewCard>> GetDueReviewCardsAsync(long userId, int limit = 20)
+    public async Task<List<ServiceModels.ReviewCard>> GetDueReviewCardsAsync(long userId, int limit = 20)
     {
         var now = DateTime.UtcNow;
 
@@ -144,24 +148,19 @@ public class ReviewService : IReviewService
 
     // ===== Review Session =====
 
-    public async Task<ReviewSession> StartReviewSessionAsync(long userId)
+    public async Task<ServiceModels.ReviewSession> StartReviewSessionAsync(long userId)
     {
-        var session = new ReviewSession
+        var session = new RepoModels.ReviewSession
         {
             UserId = userId,
             StartedAt = DateTime.UtcNow,
             Status = "active"
         };
 
-        return session;
-    }
+        _context.ReviewSessions.Add(session);
+        await _context.SaveChangesAsync();
 
-    public async Task<ReviewSession?> GetReviewSessionAsync(long sessionId)
-    {
-        var session = await _context.ReviewSessions.FindAsync(sessionId);
-        if (session == null) return null;
-
-        return new ReviewSession
+        return new ServiceModels.ReviewSession
         {
             Id = session.Id,
             UserId = session.UserId,
@@ -174,7 +173,25 @@ public class ReviewService : IReviewService
         };
     }
 
-    public async Task<ReviewSession> CompleteReviewSessionAsync(long sessionId)
+    public async Task<ServiceModels.ReviewSession?> GetReviewSessionAsync(long sessionId)
+    {
+        var session = await _context.ReviewSessions.FindAsync(sessionId);
+        if (session == null) return null;
+
+        return new ServiceModels.ReviewSession
+        {
+            Id = session.Id,
+            UserId = session.UserId,
+            StartedAt = session.StartedAt,
+            CompletedAt = session.CompletedAt,
+            CardsReviewed = session.CardsReviewed,
+            CorrectCount = session.CorrectCount,
+            TotalTimeSeconds = session.TotalTimeSeconds,
+            Status = session.Status
+        };
+    }
+
+    public async Task<ServiceModels.ReviewSession> CompleteReviewSessionAsync(long sessionId)
     {
         var session = await _context.ReviewSessions.FindAsync(sessionId);
         if (session == null)
@@ -184,7 +201,7 @@ public class ReviewService : IReviewService
         session.Status = "completed";
         await _context.SaveChangesAsync();
 
-        return new ReviewSession
+        return new ServiceModels.ReviewSession
         {
             Id = session.Id,
             UserId = session.UserId,
@@ -199,7 +216,7 @@ public class ReviewService : IReviewService
 
     // ===== Learning Analytics =====
 
-    public async Task<ReviewAnalytics> GetReviewAnalyticsAsync(long userId)
+    public async Task<ServiceModels.ReviewAnalytics> GetReviewAnalyticsAsync(long userId)
     {
         var allCards = await _context.ReviewCards
             .Where(c => c.UserId == userId)
@@ -218,7 +235,7 @@ public class ReviewService : IReviewService
             .Select(c => c.QuestionId)
             .ToList();
 
-        var weakQuestions = new List<WeakQuestionInfo>();
+        var weakQuestions = new List<ServiceModels.WeakQuestionInfo>();
         foreach (var qId in weakQuestionIds)
         {
             var question = await _context.Questions.FindAsync(qId);
@@ -226,41 +243,41 @@ public class ReviewService : IReviewService
                 .Where(h => h.UserId == userId && h.QuestionId == qId)
                 .ToListAsync();
 
-            weakQuestions.Add(new WeakQuestionInfo
+            weakQuestions.Add(new ServiceModels.WeakQuestionInfo
             {
                 QuestionId = qId,
                 Content = question?.Content ?? "Unknown",
                 AttemptCount = answers.Count,
-                CorrectCount = answers.Count(a => a.IsCorrect),
+                CorrectCount = answers.Count(a => a.IsCorrect == true),
                 SuccessRate = answers.Count > 0 
-                    ? Math.Round((decimal)answers.Count(a => a.IsCorrect) / answers.Count * 100, 1) 
+                    ? Math.Round((decimal)answers.Count(a => a.IsCorrect == true) / answers.Count * 100, 1) 
                     : 0,
                 LastAttempted = answers.OrderByDescending(a => a.ChangedAt).FirstOrDefault()?.ChangedAt ?? DateTime.MinValue
             });
         }
 
-        return new ReviewAnalytics
+        return new ServiceModels.ReviewAnalytics
         {
             TotalReviews = allCards.Sum(c => c.RepetitionCount),
             CardsLearned = allCards.Count(c => c.RepetitionCount > 0),
             CardsMastered = allCards.Count(c => c.IsMastered),
             CardsDueToday = await GetDueReviewCountAsync(userId),
-            AverageEaseFactor = allCards.Count > 0 ? Math.Round(allCards.Average(c => c.EaseFactor), 2) : 2.5m,
+            AverageEaseFactor = allCards.Count > 0 ? Math.Round((decimal)allCards.Average(c => c.EaseFactor), 2) : 2.5m,
             StudyDaysStreak = CalculateStudyStreak(userId),
-            DailyStats = dailyStats.Select(d => new DailyReviewStats
+            DailyStats = dailyStats.Select(d => new ServiceModels.DailyReviewStats
             {
                 Date = d.Date,
-                CardsReviewed = d.QuestionsAnswered,
-                CorrectCount = d.CorrectAnswers,
-                RetentionRate = d.QuestionsAnswered > 0 
-                    ? Math.Round((decimal)d.CorrectAnswers / d.QuestionsAnswered * 100, 1) 
+                CardsReviewed = d.QuestionsAnswered ?? 0,
+                CorrectCount = d.CorrectAnswers ?? 0,
+                RetentionRate = d.QuestionsAnswered > 0
+                    ? Math.Round((decimal)(d.CorrectAnswers ?? 0) / (d.QuestionsAnswered ?? 1) * 100, 1)
                     : 0
             }).ToList(),
             WeakQuestions = weakQuestions
         };
     }
 
-    public async Task<List<ReviewHistory>> GetReviewHistoryAsync(long userId, DateTime? fromDate, DateTime? toDate)
+    public async Task<List<ServiceModels.ReviewHistory>> GetReviewHistoryAsync(long userId, DateTime? fromDate, DateTime? toDate)
     {
         var query = _context.UserAnswerHistories
             .Where(h => h.UserId == userId);
@@ -276,13 +293,13 @@ public class ReviewService : IReviewService
             .Take(100)
             .ToListAsync();
 
-        return answers.Select(a => new ReviewHistory
+        return answers.Select(a => new ServiceModels.ReviewHistory
         {
             QuestionId = a.QuestionId,
             ReviewedAt = a.ChangedAt ?? DateTime.UtcNow,
-            Rating = a.IsCorrect ? ReviewRating.Good : ReviewRating.Again,
+            Rating = a.IsCorrect == true ? ServiceModels.ReviewRating.Good : ServiceModels.ReviewRating.Again,
             TimeSpentSeconds = 60,
-            WasCorrect = a.IsCorrect
+            WasCorrect = a.IsCorrect ?? false
         }).ToList();
     }
 
@@ -306,9 +323,9 @@ public class ReviewService : IReviewService
         return streak;
     }
 
-    private static ReviewCard MapToReviewCard(ReviewCard card)
+    private static ServiceModels.ReviewCard MapToReviewCard(RepoModels.ReviewCard card)
     {
-        return new ReviewCard
+        return new ServiceModels.ReviewCard
         {
             UserId = card.UserId,
             QuestionId = card.QuestionId,

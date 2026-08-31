@@ -20,6 +20,17 @@ public partial class QuestionOption
     [Column("content")]
     public string Content { get; set; } = null!;
 
+    // Alias properties for compatibility
+    [NotMapped]
+    public string OptionText { get => Content; set => Content = value; }
+
+    [NotMapped]
+    public string OptionKey
+    {
+        get => OrderIndex.HasValue ? ((char)('A' + OrderIndex.Value)).ToString() : "?";
+        set { /* Read-only based on OrderIndex */ }
+    }
+
     [Column("is_correct")]
     public bool? IsCorrect { get; set; }
 

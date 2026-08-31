@@ -22,14 +22,33 @@ public partial class UserDailyProgress
     [Column("progress_date")]
     public DateOnly ProgressDate { get; set; }
 
+    // Alias property for easier access
+    [NotMapped]
+    public DateTime Date
+    {
+        get => ProgressDate.ToDateTime(TimeOnly.MinValue);
+        set => ProgressDate = DateOnly.FromDateTime(value);
+    }
+
     [Column("questions_answered")]
     public int? QuestionsAnswered { get; set; }
 
     [Column("questions_correct")]
     public int? QuestionsCorrect { get; set; }
 
+    // Alias property for easier access
+    [NotMapped]
+    public int? CorrectAnswers
+    {
+        get => QuestionsCorrect;
+        set => QuestionsCorrect = value;
+    }
+
     [Column("study_minutes")]
     public int? StudyMinutes { get; set; }
+
+    [Column("time_spent_minutes")]
+    public int? TimeSpentMinutes { get; set; }
 
     [Column("exams_completed")]
     public int? ExamsCompleted { get; set; }

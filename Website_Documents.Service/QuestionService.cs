@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Website_Documents.Repository;
 using Website_Documents.Repository.Interfaces;
 using Website_Documents.Repository.Models;
+using Website_Documents.Service.DTOs;
 using Website_Documents.Service.Interfaces;
 
 namespace Website_Documents.Service;
@@ -76,9 +77,9 @@ public class QuestionService : IQuestionService
             {
                 OptionKey = o.OptionKey,
                 OptionText = o.OptionText,
-                IsCorrect = o.IsCorrect
+                IsCorrect = o.IsCorrect ?? false
             }).ToList(),
-            CreatedAt = question.CreatedAt
+            CreatedAt = question.CreatedAt ?? DateTime.UtcNow
         };
     }
 

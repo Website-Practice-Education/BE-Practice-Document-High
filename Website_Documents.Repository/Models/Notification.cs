@@ -25,6 +25,14 @@ public partial class Notification
     [Column("message")]
     public string Message { get; set; } = null!;
 
+    // Alias property for compatibility (Content = Message)
+    [NotMapped]
+    public string Content
+    {
+        get => Message;
+        set => Message = value;
+    }
+
     [Column("notification_type")]
     [StringLength(30)]
     public string? NotificationType { get; set; }

@@ -18,6 +18,10 @@ public partial class User
     [StringLength(255)]
     public string Email { get; set; } = null!;
 
+    // Alias property for compatibility
+    [NotMapped]
+    public string Username { get => Email; set => Email = value; }
+
     [Column("password_hash")]
     [StringLength(255)]
     public string PasswordHash { get; set; } = null!;
@@ -77,4 +81,22 @@ public partial class User
 
     [InverseProperty("User")]
     public virtual ICollection<UserTopicProgress> UserTopicProgresses { get; set; } = new List<UserTopicProgress>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<UserAnswerHistory> UserAnswerHistories { get; set; } = new List<UserAnswerHistory>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<DailyGoal> DailyGoals { get; set; } = new List<DailyGoal>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<StudyReminder> StudyReminders { get; set; } = new List<StudyReminder>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<LearningPlan> LearningPlans { get; set; } = new List<LearningPlan>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<ReviewSession> ReviewSessions { get; set; } = new List<ReviewSession>();
+
+    [InverseProperty("User")]
+    public virtual ICollection<StudySession> StudySessions { get; set; } = new List<StudySession>();
 }

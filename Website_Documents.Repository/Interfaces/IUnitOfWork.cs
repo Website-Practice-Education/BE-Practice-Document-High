@@ -11,6 +11,7 @@ public interface IUnitOfWork : IDisposable
     IStudySpaceMemberRepository StudySpaceMembers { get; }
     IChatMessageRepository ChatMessages { get; }
     IFriendshipRepository Friendships { get; }
+    IPasswordResetTokenRepository PasswordResetTokens { get; }
 
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();

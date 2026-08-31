@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Website_Documents.Repository.DBContext;
 using Website_Documents.Repository.Interfaces;
+using Website_Documents.Repository.Repositories;
 
 namespace Website_Documents.Repository;
 
@@ -19,6 +20,7 @@ public class UnitOfWork : IUnitOfWork
     private IStudySpaceMemberRepository? _studySpaceMembers;
     private IChatMessageRepository? _chatMessages;
     private IFriendshipRepository? _friendships;
+    private IPasswordResetTokenRepository? _passwordResetTokens;
 
     public UnitOfWork(BookstoreDbContext context)
     {
@@ -51,6 +53,9 @@ public class UnitOfWork : IUnitOfWork
 
     public IFriendshipRepository Friendships =>
         _friendships ??= new FriendshipRepository(_context);
+
+    public IPasswordResetTokenRepository PasswordResetTokens =>
+        _passwordResetTokens ??= new PasswordResetTokenRepository(_context);
 
     public async Task<int> SaveChangesAsync()
     {

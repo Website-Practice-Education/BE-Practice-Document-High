@@ -28,9 +28,13 @@ public class ChatController : ControllerBase
         if (userId == null)
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
-        var isMember = await _studySpaceService.IsMemberAsync(spaceId, userId.Value);
-        if (!isMember)
-            return Forbid();
+        // Global chat (spaceId = 0) is accessible to all authenticated users
+        if (spaceId != 0)
+        {
+            var isMember = await _studySpaceService.IsMemberAsync(spaceId, userId.Value);
+            if (!isMember)
+                return Forbid();
+        }
 
         var messages = await _chatService.GetMessagesAsync(spaceId, page, pageSize);
         return Ok(ApiResponse<object>.SuccessResponse(messages.Select(m => new

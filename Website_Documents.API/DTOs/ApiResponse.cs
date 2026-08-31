@@ -26,6 +26,10 @@ public class ApiResponse<T>
             Errors = errors ?? new List<string>()
         };
     }
+
+    // Convenience methods
+    public static ApiResponse<T> Ok(T data, string message = "Success") => SuccessResponse(data, message);
+    public static ApiResponse<T> Fail(string message) => ErrorResponse(message);
 }
 
 public class PaginatedResponse<T>

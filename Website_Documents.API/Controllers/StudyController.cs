@@ -71,7 +71,7 @@ public class StudyController : ControllerBase
     }
 
     [HttpPost("session/{sessionId}/progress")]
-    public async Task<IActionResult> UpdateProgress(long sessionId, [FromBody] UpdateProgressRequest request)
+    public async Task<IActionResult> UpdateProgress(long sessionId, [FromBody] UpdateStudyProgressRequest request)
     {
         await _studyService.UpdateStudySessionProgressAsync(sessionId, request.QuestionsAnswered, request.CorrectAnswers, request.TimeSpentMinutes);
         return Ok(ApiResponse<object>.SuccessResponse(null, "Progress updated"));
@@ -131,7 +131,7 @@ public class StudyController : ControllerBase
     }
 
     [HttpPost("quiz/{sessionId}/answer")]
-    public async Task<IActionResult> SubmitAnswer(long sessionId, [FromBody] SubmitAnswerRequest request)
+    public async Task<IActionResult> SubmitAnswer(long sessionId, [FromBody] SubmitStudyAnswerRequest request)
     {
         await _studyService.SubmitQuizAnswerAsync(sessionId, request.QuestionId, request.SelectedOptionId, request.IsCorrect, request.TimeSpentSeconds);
         return Ok(ApiResponse<object>.SuccessResponse(null, "Answer submitted"));
@@ -198,7 +198,7 @@ public class StartSessionRequest
     public int SubjectId { get; set; }
 }
 
-public class UpdateProgressRequest
+public class UpdateStudyProgressRequest
 {
     public int QuestionsAnswered { get; set; }
     public int CorrectAnswers { get; set; }
@@ -212,7 +212,7 @@ public class StartQuizRequest
     public string Difficulty { get; set; } = "medium";
 }
 
-public class SubmitAnswerRequest
+public class SubmitStudyAnswerRequest
 {
     public long QuestionId { get; set; }
     public long? SelectedOptionId { get; set; }

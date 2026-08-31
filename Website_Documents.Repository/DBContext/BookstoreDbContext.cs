@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Website_Documents.Repository.Models;
@@ -77,6 +77,38 @@ public partial class BookstoreDbContext : DbContext
     public virtual DbSet<SessionLeaderboard> SessionLeaderboards { get; set; }
 
     public virtual DbSet<SessionInvitation> SessionInvitations { get; set; }
+
+    public virtual DbSet<LearningPlan> LearningPlans { get; set; }
+
+    public virtual DbSet<DailyGoal> DailyGoals { get; set; }
+
+    public virtual DbSet<ReviewCard> ReviewCards { get; set; }
+
+    public virtual DbSet<StudySession> StudySessions { get; set; }
+
+    public virtual DbSet<ReviewSession> ReviewSessions { get; set; }
+
+    public virtual DbSet<StudyReminder> StudyReminders { get; set; }
+
+    public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+
+    public virtual DbSet<RoomMusicTrack> RoomMusicTracks { get; set; }
+
+    public virtual DbSet<RoomSharedFile> RoomSharedFiles { get; set; }
+
+    public virtual DbSet<RoomSetting> RoomSettings { get; set; }
+
+    public virtual DbSet<SharedDocument> SharedDocuments { get; set; }
+
+    public virtual DbSet<ForumPost> ForumPosts { get; set; }
+
+    public virtual DbSet<ForumComment> ForumComments { get; set; }
+
+    public virtual DbSet<ForumLike> ForumLikes { get; set; }
+
+    public virtual DbSet<CallSession> CallSessions { get; set; }
+
+    public virtual DbSet<CallParticipant> CallParticipants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -620,6 +652,213 @@ public partial class BookstoreDbContext : DbContext
             entity.HasOne(d => d.InvitedUser).WithMany()
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("session_invitations_invited_user_id_fkey");
+        });
+
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("password_reset_tokens_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsUsed).HasDefaultValue(false);
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("password_reset_tokens_user_id_fkey");
+        });
+
+        modelBuilder.Entity<ReviewCard>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.QuestionId }).HasName("review_cards_pkey");
+
+            entity.HasOne(d => d.Question).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("review_cards_question_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("review_cards_user_id_fkey");
+        });
+
+        modelBuilder.Entity<StudySession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("study_sessions_pkey");
+
+            entity.Property(e => e.StartedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.Status).HasDefaultValueSql("'active'::character varying");
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.StudySessions)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("study_sessions_subject_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany(p => p.StudySessions)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("study_sessions_user_id_fkey");
+        });
+
+        modelBuilder.Entity<ReviewSession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("review_sessions_pkey");
+
+            entity.Property(e => e.Status).HasDefaultValueSql("'active'::character varying");
+
+            entity.HasOne(d => d.User).WithMany(p => p.ReviewSessions)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("review_sessions_user_id_fkey");
+        });
+
+        // Additional model configurations for Room Features
+        modelBuilder.Entity<RoomMusicTrack>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("room_music_tracks_pkey");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Space).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("room_music_tracks_space_id_fkey");
+
+            entity.HasOne(d => d.Uploader).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("room_music_tracks_uploaded_by_fkey");
+        });
+
+        modelBuilder.Entity<RoomSharedFile>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("room_shared_files_pkey");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Space).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("room_shared_files_space_id_fkey");
+
+            entity.HasOne(d => d.Uploader).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("room_shared_files_uploaded_by_fkey");
+        });
+
+        modelBuilder.Entity<RoomSetting>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("room_settings_pkey");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.Space).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("room_settings_space_id_fkey");
+
+            entity.HasOne(d => d.Updater).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("room_settings_updated_by_fkey");
+        });
+
+        modelBuilder.Entity<SharedDocument>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("shared_documents_pkey");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.DocumentType).HasDefaultValueSql("'link'::character varying");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.IsVerified).HasDefaultValue(false);
+            entity.Property(e => e.ModerationStatus).HasDefaultValueSql("'pending'::character varying");
+            entity.Property(e => e.ViewCount).HasDefaultValue(0);
+            entity.Property(e => e.DownloadCount).HasDefaultValue(0);
+            entity.Property(e => e.LikeCount).HasDefaultValue(0);
+
+            entity.HasOne(d => d.Subject).WithMany(p => p.SharedDocuments)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("shared_documents_subject_id_fkey");
+
+            entity.HasOne(d => d.Topic).WithMany(p => p.SharedDocuments)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("shared_documents_topic_id_fkey");
+
+            entity.HasOne(d => d.SharedByUser).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("shared_documents_user_id_fkey");
+        });
+
+        // Forum Post configurations
+        modelBuilder.Entity<ForumPost>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("forum_posts_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.LikeCount).HasDefaultValue(0);
+            entity.Property(e => e.CommentCount).HasDefaultValue(0);
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_posts_user_id_fkey");
+        });
+
+        modelBuilder.Entity<ForumComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("forum_comments_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+
+            entity.HasOne(d => d.Post).WithMany(p => p.Comments)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_comments_post_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_comments_user_id_fkey");
+        });
+
+        modelBuilder.Entity<ForumLike>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("forum_likes_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+
+            entity.HasIndex(e => new { e.PostId, e.UserId }).IsUnique();
+
+            entity.HasOne(d => d.Post).WithMany(p => p.Likes)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_likes_post_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("forum_likes_user_id_fkey");
+        });
+
+        modelBuilder.Entity<CallSession>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("call_sessions_pkey");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.StartedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.CallType).HasDefaultValueSql("'audio'::character varying");
+            entity.Property(e => e.Status).HasDefaultValueSql("'active'::character varying");
+            entity.Property(e => e.MaxParticipants).HasDefaultValue(10);
+
+            entity.HasOne(d => d.Space).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("call_sessions_space_id_fkey");
+
+            entity.HasOne(d => d.Initiator).WithMany()
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("call_sessions_initiator_id_fkey");
+        });
+
+        modelBuilder.Entity<CallParticipant>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("call_participants_pkey");
+
+            entity.Property(e => e.JoinTime).HasDefaultValueSql("now()");
+            entity.Property(e => e.IsMuted).HasDefaultValue(false);
+            entity.Property(e => e.IsVideoOff).HasDefaultValue(false);
+            entity.Property(e => e.IsScreenSharing).HasDefaultValue(false);
+            entity.Property(e => e.ConnectionStatus).HasDefaultValueSql("'connected'::character varying");
+
+            entity.HasOne(d => d.CallSession).WithMany(p => p.Participants)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("call_participants_session_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("call_participants_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

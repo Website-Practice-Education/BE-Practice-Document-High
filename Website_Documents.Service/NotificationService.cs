@@ -52,7 +52,7 @@ public class NotificationService : INotificationService
     public async Task<List<Notification>> GetUnreadNotificationsAsync(long userId)
     {
         return await _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
+            .Where(n => n.UserId == userId && n.IsRead == false)
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync();
     }
@@ -60,7 +60,7 @@ public class NotificationService : INotificationService
     public async Task<int> GetUnreadCountAsync(long userId)
     {
         return await _context.Notifications
-            .CountAsync(n => n.UserId == userId && !n.IsRead);
+            .CountAsync(n => n.UserId == userId && n.IsRead == false);
     }
 
     public async Task MarkAsReadAsync(long notificationId)
@@ -76,7 +76,7 @@ public class NotificationService : INotificationService
     public async Task MarkAllAsReadAsync(long userId)
     {
         var unreadNotifications = await _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
+            .Where(n => n.UserId == userId && n.IsRead == false)
             .ToListAsync();
 
         foreach (var notification in unreadNotifications)

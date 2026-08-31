@@ -9,6 +9,10 @@ using Website_Documents.Repository.Interfaces;
 using Website_Documents.Repository.Models;
 using Website_Documents.Service.Interfaces;
 
+// Type aliases to resolve ambiguity between Repository.Models and Service.Interfaces
+using RepoModels = Website_Documents.Repository.Models;
+using ServiceModels = Website_Documents.Service.Interfaces;
+
 namespace Website_Documents.Service;
 
 public class LearningPlanService : ILearningPlanService
@@ -24,9 +28,9 @@ public class LearningPlanService : ILearningPlanService
 
     // ===== Learning Plan =====
 
-    public async Task<LearningPlan> CreateLearningPlanAsync(long userId, CreateLearningPlanRequest request)
+    public async Task<ServiceModels.LearningPlan> CreateLearningPlanAsync(long userId, ServiceModels.CreateLearningPlanRequest request)
     {
-        var plan = new LearningPlan
+        var plan = new RepoModels.LearningPlan
         {
             UserId = userId,
             Title = request.Title,
@@ -40,27 +44,88 @@ public class LearningPlanService : ILearningPlanService
             CreatedAt = DateTime.UtcNow
         };
 
-        return plan;
+        _context.LearningPlans.Add(plan);
+        await _context.SaveChangesAsync();
+
+        return new ServiceModels.LearningPlan
+        {
+            Id = plan.Id,
+            UserId = plan.UserId,
+            Title = plan.Title,
+            Description = plan.Description ?? string.Empty,
+            TargetDays = plan.TargetDays,
+            StartDate = plan.StartDate,
+            EndDate = plan.EndDate,
+            DailyTargetQuestions = plan.DailyTargetQuestions,
+            DailyTargetMinutes = plan.DailyTargetMinutes,
+            IsActive = plan.IsActive,
+            CreatedAt = plan.CreatedAt,
+            Items = new List<ServiceModels.LearningPlanItem>()
+        };
     }
 
-    public async Task<LearningPlan?> GetLearningPlanAsync(long planId)
+    public async Task<ServiceModels.LearningPlan?> GetLearningPlanAsync(long planId)
     {
-        return await _context.LearningPlans
+        var plan = await _context.LearningPlans
             .Include(p => p.Items)
             .FirstOrDefaultAsync(p => p.Id == planId);
+
+        if (plan == null) return null;
+
+        return new ServiceModels.LearningPlan
+        {
+            Id = plan.Id,
+            UserId = plan.UserId,
+            Title = plan.Title,
+            Description = plan.Description ?? string.Empty,
+            TargetDays = plan.TargetDays,
+            StartDate = plan.StartDate,
+            EndDate = plan.EndDate,
+            DailyTargetQuestions = plan.DailyTargetQuestions,
+            DailyTargetMinutes = plan.DailyTargetMinutes,
+            IsActive = plan.IsActive,
+            CreatedAt = plan.CreatedAt,
+            Items = plan.Items.Select(i => new ServiceModels.LearningPlanItem
+            {
+                SubjectId = i.SubjectId,
+                SubjectName = i.Subject?.Name ?? string.Empty,
+                TopicId = i.TopicId,
+                TopicName = i.Topic?.Name ?? string.Empty,
+                Priority = i.Priority,
+                TargetQuestions = i.TargetQuestions,
+                CompletedQuestions = i.CompletedQuestions,
+                IsCompleted = i.IsCompleted
+            }).ToList()
+        };
     }
 
-    public async Task<List<LearningPlan>> GetUserLearningPlansAsync(long userId, bool? isActive)
+    public async Task<List<ServiceModels.LearningPlan>> GetUserLearningPlansAsync(long userId, bool? isActive)
     {
         var query = _context.LearningPlans.Where(p => p.UserId == userId);
 
         if (isActive.HasValue)
             query = query.Where(p => p.IsActive == isActive.Value);
 
-        return await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
+        var plans = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
+
+        return plans.Select(plan => new ServiceModels.LearningPlan
+        {
+            Id = plan.Id,
+            UserId = plan.UserId,
+            Title = plan.Title,
+            Description = plan.Description ?? string.Empty,
+            TargetDays = plan.TargetDays,
+            StartDate = plan.StartDate,
+            EndDate = plan.EndDate,
+            DailyTargetQuestions = plan.DailyTargetQuestions,
+            DailyTargetMinutes = plan.DailyTargetMinutes,
+            IsActive = plan.IsActive,
+            CreatedAt = plan.CreatedAt,
+            Items = new List<ServiceModels.LearningPlanItem>()
+        }).ToList();
     }
 
-    public async Task<LearningPlan> UpdateLearningPlanAsync(long planId, UpdateLearningPlanRequest request)
+    public async Task<ServiceModels.LearningPlan> UpdateLearningPlanAsync(long planId, ServiceModels.UpdateLearningPlanRequest request)
     {
         var plan = await _context.LearningPlans.FindAsync(planId);
         if (plan == null)
@@ -85,7 +150,22 @@ public class LearningPlanService : ILearningPlanService
             plan.IsActive = request.IsActive.Value;
 
         await _context.SaveChangesAsync();
-        return plan;
+
+        return new ServiceModels.LearningPlan
+        {
+            Id = plan.Id,
+            UserId = plan.UserId,
+            Title = plan.Title,
+            Description = plan.Description ?? string.Empty,
+            TargetDays = plan.TargetDays,
+            StartDate = plan.StartDate,
+            EndDate = plan.EndDate,
+            DailyTargetQuestions = plan.DailyTargetQuestions,
+            DailyTargetMinutes = plan.DailyTargetMinutes,
+            IsActive = plan.IsActive,
+            CreatedAt = plan.CreatedAt,
+            Items = new List<ServiceModels.LearningPlanItem>()
+        };
     }
 
     public async Task<bool> DeleteLearningPlanAsync(long planId)
@@ -100,7 +180,7 @@ public class LearningPlanService : ILearningPlanService
 
     // ===== Daily Goal =====
 
-    public async Task<DailyGoal> SetDailyGoalAsync(long userId, int targetQuestions, int targetMinutes)
+    public async Task<ServiceModels.DailyGoal> SetDailyGoalAsync(long userId, int targetQuestions, int targetMinutes)
     {
         var today = DateTime.UtcNow.Date;
         var existingGoal = await _context.DailyGoals
@@ -111,10 +191,18 @@ public class LearningPlanService : ILearningPlanService
             existingGoal.TargetQuestions = targetQuestions;
             existingGoal.TargetMinutes = targetMinutes;
             await _context.SaveChangesAsync();
-            return existingGoal;
+
+            return new ServiceModels.DailyGoal
+            {
+                Id = existingGoal.Id,
+                UserId = existingGoal.UserId,
+                TargetQuestions = existingGoal.TargetQuestions,
+                TargetMinutes = existingGoal.TargetMinutes,
+                CreatedAt = existingGoal.CreatedAt
+            };
         }
 
-        var goal = new DailyGoal
+        var goal = new RepoModels.DailyGoal
         {
             UserId = userId,
             TargetQuestions = targetQuestions,
@@ -125,17 +213,36 @@ public class LearningPlanService : ILearningPlanService
 
         _context.DailyGoals.Add(goal);
         await _context.SaveChangesAsync();
-        return goal;
+
+        return new ServiceModels.DailyGoal
+        {
+            Id = goal.Id,
+            UserId = goal.UserId,
+            TargetQuestions = goal.TargetQuestions,
+            TargetMinutes = goal.TargetMinutes,
+            CreatedAt = goal.CreatedAt
+        };
     }
 
-    public async Task<DailyGoal?> GetDailyGoalAsync(long userId)
+    public async Task<ServiceModels.DailyGoal?> GetDailyGoalAsync(long userId)
     {
         var today = DateTime.UtcNow.Date;
-        return await _context.DailyGoals
+        var goal = await _context.DailyGoals
             .FirstOrDefaultAsync(g => g.UserId == userId && g.Date.Date == today);
+
+        if (goal == null) return null;
+
+        return new ServiceModels.DailyGoal
+        {
+            Id = goal.Id,
+            UserId = goal.UserId,
+            TargetQuestions = goal.TargetQuestions,
+            TargetMinutes = goal.TargetMinutes,
+            CreatedAt = goal.CreatedAt
+        };
     }
 
-    public async Task<DailyGoalProgress> GetDailyGoalProgressAsync(long userId)
+    public async Task<ServiceModels.DailyGoalProgress> GetDailyGoalProgressAsync(long userId)
     {
         var today = DateTime.UtcNow.Date;
 
@@ -149,7 +256,7 @@ public class LearningPlanService : ILearningPlanService
         var targetQuestions = goal?.TargetQuestions ?? 10;
         var targetMinutes = goal?.TargetMinutes ?? 30;
 
-        var milestones = new List<GoalMilestone>
+        var milestones = new List<ServiceModels.GoalMilestone>
         {
             new() { Label = "25%", Target = targetQuestions, Current = completedQuestions, IsAchieved = completedQuestions >= targetQuestions * 0.25m },
             new() { Label = "50%", Target = targetQuestions, Current = completedQuestions, IsAchieved = completedQuestions >= targetQuestions * 0.5m },
@@ -157,7 +264,7 @@ public class LearningPlanService : ILearningPlanService
             new() { Label = "100%", Target = targetQuestions, Current = completedQuestions, IsAchieved = completedQuestions >= targetQuestions }
         };
 
-        return new DailyGoalProgress
+        return new ServiceModels.DailyGoalProgress
         {
             TargetQuestions = targetQuestions,
             CompletedQuestions = completedQuestions,
@@ -173,26 +280,50 @@ public class LearningPlanService : ILearningPlanService
 
     // ===== Study Reminder =====
 
-    public async Task<StudyReminder> CreateReminderAsync(long userId, StudyReminderRequest request)
+    public async Task<ServiceModels.StudyReminder> CreateReminderAsync(long userId, ServiceModels.StudyReminderRequest request)
     {
-        var reminder = new StudyReminder
+        var reminder = new RepoModels.StudyReminder
         {
             UserId = userId,
             Title = request.Title,
             ReminderTime = request.ReminderTime,
+            DaysOfWeek = string.Join(",", request.DaysOfWeek.Select(d => (int)d)),
             IsEnabled = true,
             CreatedAt = DateTime.UtcNow
         };
 
-        return reminder;
+        _context.StudyReminders.Add(reminder);
+        await _context.SaveChangesAsync();
+
+        return new ServiceModels.StudyReminder
+        {
+            Id = reminder.Id,
+            UserId = reminder.UserId,
+            Title = reminder.Title,
+            ReminderTime = reminder.ReminderTime,
+            DaysOfWeek = reminder.DaysOfWeek?.Split(',').Select(int.Parse).Cast<DayOfWeek>().ToList() ?? new List<DayOfWeek>(),
+            IsEnabled = reminder.IsEnabled,
+            CreatedAt = reminder.CreatedAt
+        };
     }
 
-    public async Task<List<StudyReminder>> GetUserRemindersAsync(long userId)
+    public async Task<List<ServiceModels.StudyReminder>> GetUserRemindersAsync(long userId)
     {
-        return await _context.StudyReminders
+        var reminders = await _context.StudyReminders
             .Where(r => r.UserId == userId)
             .OrderBy(r => r.ReminderTime)
             .ToListAsync();
+
+        return reminders.Select(r => new ServiceModels.StudyReminder
+        {
+            Id = r.Id,
+            UserId = r.UserId,
+            Title = r.Title,
+            ReminderTime = r.ReminderTime,
+            DaysOfWeek = r.DaysOfWeek?.Split(',').Select(int.Parse).Cast<DayOfWeek>().ToList() ?? new List<DayOfWeek>(),
+            IsEnabled = r.IsEnabled,
+            CreatedAt = r.CreatedAt
+        }).ToList();
     }
 
     public async Task<bool> ToggleReminderAsync(long reminderId, bool isEnabled)
@@ -217,7 +348,7 @@ public class LearningPlanService : ILearningPlanService
 
     // ===== Study Streak =====
 
-    public async Task<StudyStreak> GetStudyStreakAsync(long userId)
+    public async Task<ServiceModels.StudyStreak> GetStudyStreakAsync(long userId)
     {
         var today = DateTime.UtcNow.Date;
         var streak = 0;
@@ -248,7 +379,7 @@ public class LearningPlanService : ILearningPlanService
             }
         }
 
-        return new StudyStreak
+        return new ServiceModels.StudyStreak
         {
             UserId = userId,
             CurrentStreak = streak,
@@ -258,16 +389,16 @@ public class LearningPlanService : ILearningPlanService
         };
     }
 
-    public async Task<StudyStreak> UpdateStreakAsync(long userId)
+    public async Task<ServiceModels.StudyStreak> UpdateStreakAsync(long userId)
     {
         return await GetStudyStreakAsync(userId);
     }
 
     // ===== Study Recommendation =====
 
-    public async Task<StudyRecommendation> GetRecommendationAsync(long userId)
+    public async Task<ServiceModels.StudyRecommendation> GetRecommendationAsync(long userId)
     {
-        var recommendation = new StudyRecommendation();
+        var recommendation = new ServiceModels.StudyRecommendation();
 
         var weakTopics = await GetWeakTopicsForUserAsync(userId);
         if (weakTopics.Any())
@@ -287,9 +418,9 @@ public class LearningPlanService : ILearningPlanService
         return recommendation;
     }
 
-    public async Task<List<StudyPlanItem>> GetTodayStudyPlanAsync(long userId)
+    public async Task<List<ServiceModels.StudyPlanItem>> GetTodayStudyPlanAsync(long userId)
     {
-        var planItems = new List<StudyPlanItem>();
+        var planItems = new List<ServiceModels.StudyPlanItem>();
         var subjects = await _context.Subjects.ToListAsync();
 
         foreach (var subject in subjects.Take(5))
@@ -306,7 +437,7 @@ public class LearningPlanService : ILearningPlanService
 
             var notAttempted = questions.Count(q => !attemptedIds.Contains(q.Id));
 
-            planItems.Add(new StudyPlanItem
+            planItems.Add(new ServiceModels.StudyPlanItem
             {
                 SubjectId = subject.Id,
                 SubjectName = subject.Name,
@@ -321,10 +452,10 @@ public class LearningPlanService : ILearningPlanService
         return planItems;
     }
 
-    private async Task<List<RecommendedTopic>> GetWeakTopicsForUserAsync(long userId)
+    private async Task<List<ServiceModels.RecommendedTopic>> GetWeakTopicsForUserAsync(long userId)
     {
         var topics = await _context.Topics.ToListAsync();
-        var weakTopics = new List<RecommendedTopic>();
+        var weakTopics = new List<ServiceModels.RecommendedTopic>();
 
         foreach (var topic in topics)
         {
@@ -338,10 +469,10 @@ public class LearningPlanService : ILearningPlanService
 
             if (answers.Count >= 3)
             {
-                var accuracy = (decimal)answers.Count(a => a.IsCorrect) / answers.Count * 100;
+                var accuracy = (decimal)answers.Count(a => a.IsCorrect == true) / answers.Count * 100;
                 if (accuracy < 70)
                 {
-                    weakTopics.Add(new RecommendedTopic
+                    weakTopics.Add(new ServiceModels.RecommendedTopic
                     {
                         TopicId = topic.Id,
                         TopicName = topic.Name,

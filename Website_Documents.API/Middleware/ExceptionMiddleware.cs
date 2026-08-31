@@ -24,6 +24,13 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[EXCEPTION] {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[STACK TRACE] {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"[INNER EXCEPTION] {ex.InnerException.Message}");
+                Console.WriteLine($"[INNER STACK TRACE] {ex.InnerException.StackTrace}");
+            }
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -38,7 +45,7 @@ public class ExceptionMiddleware
             UnauthorizedAccessException => new { StatusCode = HttpStatusCode.Unauthorized, Message = exception.Message },
             InvalidOperationException => new { StatusCode = HttpStatusCode.BadRequest, Message = exception.Message },
             KeyNotFoundException => new { StatusCode = HttpStatusCode.NotFound, Message = exception.Message },
-            _ => new { StatusCode = HttpStatusCode.InternalServerError, Message = "An unexpected error occurred" }
+            _ => new { StatusCode = HttpStatusCode.InternalServerError, Message = exception.Message }  // Return actual error
         };
 
         response.StatusCode = (int)apiResponse.StatusCode;
@@ -46,7 +53,8 @@ public class ExceptionMiddleware
         var errorResponse = ApiResponse<object>.ErrorResponse(apiResponse.Message);
         var json = JsonSerializer.Serialize(errorResponse, new JsonSerializerOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            ReferenceHandler = ReferenceHandler.Preserve
         });
 
         await response.WriteAsync(json);

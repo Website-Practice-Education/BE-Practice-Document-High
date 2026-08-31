@@ -7,11 +7,9 @@ namespace Website_Documents.Repository.Models;
 [Table("review_cards")]
 public class ReviewCard
 {
-    [Key]
     [Column("user_id")]
     public long UserId { get; set; }
 
-    [Key]
     [Column("question_id")]
     public long QuestionId { get; set; }
 
@@ -34,10 +32,8 @@ public class ReviewCard
     public bool IsMastered { get; set; }
 
     [ForeignKey("UserId")]
-    [InverseProperty("ReviewCards")]
     public virtual User User { get; set; } = null!;
 
     [ForeignKey("QuestionId")]
-    [InverseProperty("ReviewCards")]
     public virtual Question Question { get; set; } = null!;
 }

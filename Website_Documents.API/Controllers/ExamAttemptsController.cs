@@ -31,7 +31,7 @@ public class ExamAttemptsController : ControllerBase
     }
 
     [HttpPost("{attemptId}/answer")]
-    public async Task<IActionResult> SubmitAnswer(long attemptId, [FromBody] SubmitAnswerRequest request)
+    public async Task<IActionResult> SubmitAnswer(long attemptId, [FromBody] SubmitExamAnswerRequest request)
     {
         var result = await _attemptService.SubmitAnswerAsync(attemptId, request.QuestionId, request.SelectedOptionId);
         return Ok(ApiResponse<ExamAttemptResponse>.SuccessResponse(result, "Answer saved"));
@@ -81,7 +81,7 @@ public class ExamAttemptsController : ControllerBase
     }
 }
 
-public class SubmitAnswerRequest
+public class SubmitExamAnswerRequest
 {
     public long QuestionId { get; set; }
     public long? SelectedOptionId { get; set; }

@@ -87,26 +87,54 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByEmailAsync(email);
         if (user == null) return null;
 
-        // Generate a simple reset token (in production, use a more secure approach)
+        // Invalidate any existing tokens for this user
+        await _unitOfWork.PasswordResetTokens.InvalidateUserTokensAsync(user.Id);
+
+        // Generate a secure reset token
         var tokenBytes = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
         rng.GetBytes(tokenBytes);
-        return Convert.ToBase64String(tokenBytes);
+        var token = Convert.ToBase64String(tokenBytes);
+
+        // Store token in database with expiration (24 hours)
+        var resetToken = new Repository.Models.PasswordResetToken
+        {
+            UserId = user.Id,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            IsUsed = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.PasswordResetTokens.CreateAsync(resetToken);
+        return token;
     }
 
     public async Task<bool> ResetPasswordAsync(string token, string newPassword)
     {
-        // In production, validate token from database with expiration
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(newPassword))
             return false;
 
-        // This is a simplified implementation
-        // In production, you would:
-        // 1. Look up token in a PasswordResetTokens table
-        // 2. Check expiration
-        // 3. Get associated user
-        // 4. Update password and invalidate token
+        // Find valid token
+        var resetToken = await _unitOfWork.PasswordResetTokens.GetByTokenAsync(token);
+        if (resetToken == null)
+            return false;
 
+        // Get user
+        var user = await _unitOfWork.Users.GetByIdAsync(resetToken.UserId);
+        if (user == null)
+            return false;
+
+        // Update password
+        user.PasswordHash = HashPassword(newPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.Users.UpdateAsync(user);
+
+        // Mark token as used
+        resetToken.IsUsed = true;
+        await _unitOfWork.PasswordResetTokens.UpdateAsync(resetToken);
+
+        await _unitOfWork.SaveChangesAsync();
         return true;
     }
 

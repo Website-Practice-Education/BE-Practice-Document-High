@@ -104,7 +104,7 @@ public class ExamAttemptService : IExamAttemptService
             .ToListAsync();
 
         var totalQuestions = attempt.Exam?.TotalQuestions ?? answers.Count;
-        var totalCorrect = answers.Count(a => a.IsCorrect);
+        var totalCorrect = answers.Count(a => a.IsCorrect == true);
         var score = totalQuestions > 0 ? Math.Round((decimal)totalCorrect / totalQuestions * 100, 2) : 0;
 
         attempt.Status = "submitted";
@@ -112,7 +112,7 @@ public class ExamAttemptService : IExamAttemptService
         attempt.TotalCorrect = totalCorrect;
         attempt.TotalQuestions = totalQuestions;
         attempt.Score = score;
-        attempt.TimeSpentSeconds = (int)(DateTime.UtcNow - attempt.StartedAt).TotalSeconds;
+        attempt.TimeSpentSeconds = (int)(DateTime.UtcNow - attempt.StartedAt.GetValueOrDefault(DateTime.UtcNow)).TotalSeconds;
 
         await _context.SaveChangesAsync();
         return MapToResponse(attempt, attempt.Exam?.Title);
@@ -160,7 +160,7 @@ public class ExamAttemptService : IExamAttemptService
         foreach (var answer in attempt.UserAnswers)
         {
             var question = questions.FirstOrDefault(q => q.Id == answer.QuestionId);
-            var correctOption = question?.QuestionOptions.FirstOrDefault(o => o.IsCorrect);
+            var correctOption = question?.QuestionOptions.FirstOrDefault(o => o.IsCorrect == true);
 
             results.Add(new QuestionResultDto
             {

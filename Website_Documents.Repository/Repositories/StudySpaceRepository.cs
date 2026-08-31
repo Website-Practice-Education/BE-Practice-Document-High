@@ -166,6 +166,13 @@ public class ChatMessageRepository : IChatMessageRepository
         return message;
     }
 
+    public async Task<ChatMessage?> GetByIdAsync(long id)
+    {
+        return await _context.ChatMessages
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.Id == id);
+    }
+
     public async Task<List<ChatMessage>> GetMessagesAsync(long spaceId, int page, int pageSize)
     {
         return await _context.ChatMessages

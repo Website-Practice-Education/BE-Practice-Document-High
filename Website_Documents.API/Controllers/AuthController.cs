@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using Website_Documents.API.DTOs;
+using Website_Documents.Service.DTOs;
 using Website_Documents.Service.Interfaces;
+using ApiDTOs = Website_Documents.API.DTOs;
+using ServiceDTOs = Website_Documents.Service.DTOs;
 
 namespace Website_Documents.API.Controllers;
 
@@ -17,12 +20,12 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] ServiceDTOs.RegisterRequest request)
     {
         try
         {
             var result = await _authService.RegisterAsync(request);
-            return Ok(ApiResponse<LoginResponse>.SuccessResponse(result, "Registration successful"));
+            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Registration successful"));
         }
         catch (InvalidOperationException ex)
         {
@@ -31,12 +34,26 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] ServiceDTOs.LoginRequest request)
     {
         try
         {
             var result = await _authService.LoginAsync(request);
-            return Ok(ApiResponse<LoginResponse>.SuccessResponse(result, "Login successful"));
+            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Login successful"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] ApiDTOs.GoogleLoginRequest request)
+    {
+        try
+        {
+            var result = await _authService.GoogleLoginAsync(request.Token);
+            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Google login successful"));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -45,7 +62,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    public async Task<IActionResult> ChangePassword([FromBody] ServiceDTOs.ChangePasswordRequest request)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -66,7 +83,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] ServiceDTOs.UpdateProfileRequest request)
     {
         var userId = GetCurrentUserId();
         if (userId == null)

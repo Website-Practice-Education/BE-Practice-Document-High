@@ -181,7 +181,7 @@ public class LiveSessionsController : ControllerBase
     }
 
     [HttpPost("{id}/answer")]
-    public async Task<IActionResult> SubmitAnswer(long id, [FromBody] SubmitAnswerRequest request)
+    public async Task<IActionResult> SubmitAnswer(long id, [FromBody] SubmitLiveSessionAnswerRequest request)
     {
         var userId = GetCurrentUserId();
         if (userId == null)
@@ -327,7 +327,7 @@ public class SetReadyRequest
     public bool IsReady { get; set; }
 }
 
-public class SubmitAnswerRequest
+public class SubmitLiveSessionAnswerRequest
 {
     public long QuestionId { get; set; }
     public long? OptionId { get; set; }

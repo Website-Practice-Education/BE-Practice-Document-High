@@ -24,6 +24,9 @@ public partial class UserTopicProgress
     [Column("correct_count")]
     public int? CorrectCount { get; set; }
 
+    [Column("status")]
+    public string? Status { get; set; }
+
     [Column("last_practiced_at")]
     public DateTime? LastPracticedAt { get; set; }
 

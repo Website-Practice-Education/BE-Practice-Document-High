@@ -105,9 +105,6 @@ public class FriendsController : ControllerBase
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
         var result = await _friendshipService.AcceptFriendRequestAsync(requestId, userId.Value);
-        if (result == null)
-            return BadRequest(ApiResponse<object>.ErrorResponse("Could not accept request"));
-
         return Ok(ApiResponse<object>.SuccessResponse(null, "Friend request accepted"));
     }
 
@@ -118,10 +115,7 @@ public class FriendsController : ControllerBase
         if (userId == null)
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
-        var success = await _friendshipService.DeclineFriendRequestAsync(requestId, userId.Value);
-        if (!success)
-            return BadRequest(ApiResponse<object>.ErrorResponse("Could not decline request"));
-
+        await _friendshipService.DeclineFriendRequestAsync(requestId, userId.Value);
         return Ok(ApiResponse<object>.SuccessResponse(null, "Friend request declined"));
     }
 

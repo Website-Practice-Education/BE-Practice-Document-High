@@ -54,3 +54,9 @@ public class UpdateProfileRequest
     public short? Grade { get; set; }
     public string? AvatarUrl { get; set; }
 }
+
+public class GoogleLoginRequest
+{
+    [Required]
+    public string Token { get; set; } = string.Empty;
+}

@@ -20,24 +20,5 @@ public interface IStudySpaceService
     Task<bool> RemoveMemberAsync(long spaceId, long userId, long targetUserId);
     Task<string> GenerateInviteCodeAsync(long spaceId, long userId);
     Task<bool> DeleteSpaceAsync(long spaceId, long userId);
-}
-
-public interface IChatService
-{
-    Task<ChatMessage> SendMessageAsync(long spaceId, long userId, string content, string messageType = "text");
-    Task<List<ChatMessage>> GetMessagesAsync(long spaceId, int page = 1, int pageSize = 50);
-    Task<int> GetUnreadCountAsync(long spaceId, long userId, DateTime? since = null);
-}
-
-public interface IFriendshipService
-{
-    Task<Friendship> SendFriendRequestAsync(long userId, long friendId);
-    Task<Friendship?> AcceptFriendRequestAsync(long requestId, long userId);
-    Task<bool> DeclineFriendRequestAsync(long requestId, long userId);
-    Task<bool> RemoveFriendAsync(long userId, long friendId);
-    Task<bool> BlockUserAsync(long userId, long blockUserId);
-    Task<List<Friendship>> GetFriendsAsync(long userId);
-    Task<List<Friendship>> GetPendingRequestsAsync(long userId);
-    Task<List<Friendship>> SearchUsersAsync(long userId, string searchTerm);
-    Task<bool> AreFriendsAsync(long userId1, long userId2);
+    Task<bool> UpdateSpaceAsync(long spaceId, long userId, string? name, string? description, string? spaceType);
 }

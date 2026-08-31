@@ -43,11 +43,11 @@ public class ProgressService : IProgressService
         }
 
         var todayAnswers = await _context.UserAnswerHistories
-            .Where(h => h.UserId == userId && h.AnsweredAt.Date == today)
+            .Where(h => h.UserId == userId && h.ChangedAt.HasValue && h.ChangedAt.Value.Date == today)
             .ToListAsync();
 
         progress.QuestionsAnswered = todayAnswers.Count;
-        progress.CorrectAnswers = todayAnswers.Count(a => a.IsCorrect);
+        progress.CorrectAnswers = todayAnswers.Count(a => a.IsCorrect == true);
 
         await _context.SaveChangesAsync();
         return progress;
@@ -138,13 +138,13 @@ public class ProgressService : IProgressService
         return new DashboardResponse
         {
             TotalQuestionsAnswered = totalAnswers.Count,
-            TotalCorrectAnswers = totalAnswers.Count(a => a.IsCorrect),
-            AccuracyRate = totalAnswers.Count > 0 
-                ? Math.Round((decimal)totalAnswers.Count(a => a.IsCorrect) / totalAnswers.Count * 100, 1) 
+            TotalCorrectAnswers = totalAnswers.Count(a => a.IsCorrect == true),
+            AccuracyRate = totalAnswers.Count > 0
+                ? Math.Round((decimal)totalAnswers.Count(a => a.IsCorrect == true) / totalAnswers.Count * 100, 1)
                 : 0,
             TotalExamsTaken = totalExams.Count,
-            AverageScore = totalExams.Count > 0 
-                ? Math.Round(totalExams.Average(a => a.Score ?? 0), 1) 
+            AverageScore = totalExams.Count > 0
+                ? Math.Round(totalExams.Average(a => a.Score ?? 0), 1)
                 : 0,
             CurrentStreak = streak,
             TotalStudyTimeMinutes = totalAnswers.Count * 2,
@@ -153,9 +153,9 @@ public class ProgressService : IProgressService
             WeeklyProgress = weeklyProgress.Select(p => new DailyProgressDto
             {
                 Date = p.Date,
-                QuestionsAnswered = p.QuestionsAnswered,
-                CorrectAnswers = p.CorrectAnswers,
-                TimeSpentMinutes = p.TimeSpentMinutes
+                QuestionsAnswered = p.QuestionsAnswered ?? 0,
+                CorrectAnswers = p.CorrectAnswers ?? 0,
+                TimeSpentMinutes = p.TimeSpentMinutes ?? 0
             }).ToList()
         };
     }

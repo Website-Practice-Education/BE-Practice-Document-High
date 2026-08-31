@@ -30,6 +30,7 @@ public interface IStudySpaceMemberRepository
 public interface IChatMessageRepository
 {
     Task<ChatMessage> CreateAsync(ChatMessage message);
+    Task<ChatMessage?> GetByIdAsync(long id);
     Task<List<ChatMessage>> GetMessagesAsync(long spaceId, int page, int pageSize);
     Task<int> GetUnreadCountAsync(long spaceId, long userId, System.DateTime? since = null);
 }

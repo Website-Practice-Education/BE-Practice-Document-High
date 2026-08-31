@@ -54,9 +54,18 @@ public partial class UserAttempt
     [Precision(6, 2)]
     public decimal? Score { get; set; }
 
+    [Column("total_correct")]
+    public int? TotalCorrect { get; set; }
+
+    [Column("total_questions")]
+    public int? TotalQuestions { get; set; }
+
     [Column("max_score")]
     [Precision(6, 2)]
     public decimal? MaxScore { get; set; }
+
+    [Column("submitted_at")]
+    public DateTime? SubmittedAt { get; set; }
 
     [Column("status")]
     [StringLength(20)]

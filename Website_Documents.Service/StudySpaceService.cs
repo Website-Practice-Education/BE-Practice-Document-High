@@ -33,19 +33,31 @@ public class StudySpaceService : IStudySpaceService
             CreatedAt = DateTime.UtcNow
         };
 
-        var createdSpace = await _unitOfWork.StudySpaces.CreateAsync(space);
-
-        var member = new StudySpaceMember
+        try
         {
-            SpaceId = createdSpace.Id,
-            UserId = userId,
-            Role = "owner",
-            JoinedAt = DateTime.UtcNow,
-            IsActive = true
-        };
-        await _unitOfWork.StudySpaceMembers.CreateAsync(member);
+            await _unitOfWork.BeginTransactionAsync();
+            
+            var createdSpace = await _unitOfWork.StudySpaces.CreateAsync(space);
 
-        return createdSpace;
+            var member = new StudySpaceMember
+            {
+                SpaceId = createdSpace.Id,
+                UserId = userId,
+                Role = "owner",
+                JoinedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+            await _unitOfWork.StudySpaceMembers.CreateAsync(member);
+
+            await _unitOfWork.CommitTransactionAsync();
+            
+            return createdSpace;
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackTransactionAsync();
+            throw new InvalidOperationException($"Failed to create study space: {ex.Message}", ex);
+        }
     }
 
     public async Task<StudySpace?> GetSpaceByIdAsync(long spaceId)
@@ -176,6 +188,27 @@ public class StudySpaceService : IStudySpaceService
         return true;
     }
 
+    public async Task<bool> UpdateSpaceAsync(long spaceId, long userId, string? name, string? description, string? spaceType)
+    {
+        var member = await _unitOfWork.StudySpaceMembers.GetMemberAsync(spaceId, userId);
+        if (member == null || member.Role != "owner")
+            return false;
+
+        var space = await _unitOfWork.StudySpaces.GetByIdAsync(spaceId);
+        if (space == null)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(name))
+            space.Name = name;
+        if (description != null)
+            space.Description = description;
+        if (!string.IsNullOrWhiteSpace(spaceType))
+            space.SpaceType = spaceType;
+
+        await _unitOfWork.StudySpaces.UpdateAsync(space);
+        return true;
+    }
+
     private string GenerateInviteCode()
     {
         return Guid.NewGuid().ToString("N")[..8].ToUpper();
@@ -202,7 +235,10 @@ public class ChatService : IChatService
             CreatedAt = DateTime.UtcNow
         };
 
-        return await _unitOfWork.ChatMessages.CreateAsync(message);
+        var createdMessage = await _unitOfWork.ChatMessages.CreateAsync(message);
+        
+        // Reload with User included for SignalR broadcast
+        return await _unitOfWork.ChatMessages.GetByIdAsync(createdMessage.Id) ?? createdMessage;
     }
 
     public async Task<List<ChatMessage>> GetMessagesAsync(long spaceId, int page = 1, int pageSize = 50)
@@ -246,11 +282,11 @@ public class FriendshipService : IFriendshipService
         return await _unitOfWork.Friendships.CreateAsync(friendship);
     }
 
-    public async Task<Friendship?> AcceptFriendRequestAsync(long requestId, long userId)
+    public async Task<Friendship> AcceptFriendRequestAsync(long requestId, long userId)
     {
         var friendship = await _unitOfWork.Friendships.GetByIdAsync(requestId);
         if (friendship == null || friendship.FriendId != userId || friendship.Status != "pending")
-            return null;
+            throw new InvalidOperationException("Invalid friend request");
 
         friendship.Status = "accepted";
         friendship.UpdatedAt = DateTime.UtcNow;
@@ -260,12 +296,25 @@ public class FriendshipService : IFriendshipService
 
     public async Task<bool> DeclineFriendRequestAsync(long requestId, long userId)
     {
+        try
+        {
+            await RejectFriendRequestAsync(requestId, userId);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<Friendship> RejectFriendRequestAsync(long requestId, long userId)
+    {
         var friendship = await _unitOfWork.Friendships.GetByIdAsync(requestId);
         if (friendship == null || friendship.FriendId != userId || friendship.Status != "pending")
-            return false;
+            throw new InvalidOperationException("Invalid friend request");
 
         await _unitOfWork.Friendships.DeleteAsync(requestId);
-        return true;
+        return friendship;
     }
 
     public async Task<bool> RemoveFriendAsync(long userId, long friendId)
