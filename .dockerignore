@@ -1,0 +1,17 @@
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/.github
+**/*.md
+**/*.user
+**/*.userosscache
+**/.dockerignore
+**/Dockerfile*
+**/.env
+**/.env.*
+**/docker-compose*
+**/*.log
+**/.git/**

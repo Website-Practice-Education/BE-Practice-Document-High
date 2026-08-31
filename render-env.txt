@@ -1,0 +1,57 @@
+# ===============================================
+# ENVIRONMENT VARIABLES CHO DEPLOY RENDER
+# ===============================================
+# Copy toàn bộ nội dung bên dưới vào phần Env vars trên Render Dashboard
+# (Environment → Add from .env)
+
+# ===============================================
+# ASP.NET CORE
+# ===============================================
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://+:8080
+
+# ===============================================
+# DATABASE CONNECTION
+# ===============================================
+# Thay thế bằng connection string của bạn
+ConnectionStrings__DefaultConnection=Host=YOUR_DB_HOST;Port=5432;Database=YOUR_DB_NAME;Username=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;sslmode=require
+
+# Ví dụ (Neon Tech - xóa dòng này và thay bằng connection string thật):
+# ConnectionStrings__DefaultConnection=Host=ep-green-firefly-ayhpnti7-pooler.c-5.us-east-2.aws.neon.tech;Port=5432;Database=neondb;Username=neondb_owner;Password=npg_YOUR_PASSWORD;sslmode=require
+
+# ===============================================
+# JWT AUTHENTICATION
+# ===============================================
+# Secret key tối thiểu 32 ký tự
+Jwt__Secret=YOUR_SUPER_SECRET_KEY_AT_LEAST_32_CHARACTERS_LONG
+Jwt__Issuer=WebsiteDocumentsAPI
+Jwt__Audience=WebsiteDocumentsClient
+Jwt__ExpiryDays=7
+
+# ===============================================
+# GOOGLE OAUTH
+# ===============================================
+Google__ClientId=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+Google__ClientSecret=YOUR_GOOGLE_CLIENT_SECRET
+
+# ===============================================
+# GEMINI AI
+# ===============================================
+Gemini__ApiKey=YOUR_GEMINI_API_KEY
+
+# ===============================================
+# EMAIL SETTINGS (Gmail SMTP)
+# ===============================================
+Email__Enabled=true
+Email__SmtpHost=smtp.gmail.com
+Email__SmtpPort=587
+Email__Username=your_email@gmail.com
+Email__Password=your_16_character_app_password
+Email__FromEmail=your_email@gmail.com
+
+# ===============================================
+# STORAGE
+# ===============================================
+Storage__Provider=local
+Storage__Local__BasePath=wwwroot/uploads
+Storage__Local__BaseUrl=/uploads

@@ -17,7 +17,7 @@ using Website_Documents.Service.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 0. Cấu hình User Secrets (chạy trước khi load appsettings.json)
+// 0. Chỉ load User Secrets trong Development
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration.AddUserSecrets<Program>();
