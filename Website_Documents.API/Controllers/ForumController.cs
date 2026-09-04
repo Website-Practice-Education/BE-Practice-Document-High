@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Website_Documents.Service.Interfaces;
 using System.Security.Claims;
@@ -21,8 +22,7 @@ public class ForumController : ControllerBase
 
     private long GetCurrentUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-            ?? User.FindFirst("nameidentifier")?.Value;
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return long.TryParse(userIdClaim, out var userId) ? userId : 0;
     }
 
@@ -259,6 +259,63 @@ public class ForumController : ControllerBase
         {
             _logger.LogError(ex, "Error toggling like on post {PostId}", id);
             return StatusCode(500, new { success = false, message = "Lỗi khi thích bài viết" });
+        }
+    }
+
+    /// <summary>
+    /// Upload an image for a forum post
+    /// </summary>
+    [HttpPost("upload")]
+    [Authorize]
+    public async Task<IActionResult> UploadImage(IFormFile file)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (userId == 0)
+                return Unauthorized(new { success = false, message = "Vui lòng đăng nhập" });
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { success = false, message = "Không có file được tải lên" });
+
+            // Validate file type (chỉ cho phép ảnh)
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+                return BadRequest(new { success = false, message = "Định dạng file không được hỗ trợ. Chỉ chấp nhận: jpg, jpeg, png, gif, webp" });
+
+            // Validate file size (max 5MB)
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(new { success = false, message = "Kích thước file không được vượt quá 5MB" });
+
+            // Tạo thư mục lưu file
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "forum", userId.ToString());
+            Directory.CreateDirectory(folder);
+
+            // Tạo tên file unique
+            var fileName = $"{Guid.NewGuid()}{extension}";
+            var filePath = Path.Combine(folder, fileName);
+
+            // Lưu file
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            // Trả về URL tương đối
+            var url = $"/uploads/forum/{userId}/{fileName}";
+
+            return Ok(new
+            {
+                success = true,
+                url,
+                message = "Upload ảnh thành công"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading forum image");
+            return StatusCode(500, new { success = false, message = "Lỗi khi upload ảnh" });
         }
     }
 }

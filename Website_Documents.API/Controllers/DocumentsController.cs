@@ -43,8 +43,21 @@ public class DocumentsController : ControllerBase
             ?? User.FindFirst("fullName")?.Value;
     }
 
+    private string? GetUserRole()
+    {
+        return User.FindFirst(ClaimTypes.Role)?.Value 
+            ?? User.FindFirst("role")?.Value;
+    }
+
+    private bool IsAdmin()
+    {
+        var role = GetUserRole();
+        return !string.IsNullOrEmpty(role) && role.ToLower() == "admin";
+    }
+
     /// <summary>
     /// Lấy danh sách tài liệu với bộ lọc (chỉ hiển thị tài liệu đã duyệt)
+    /// Admin có thể xem cả tài liệu chưa duyệt với tham số showAll=true
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetDocuments(
@@ -60,6 +73,13 @@ public class DocumentsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
+        // Check if user is admin - admins can see all documents including pending
+        var userRole = GetUserRole();
+        var isAdmin = !string.IsNullOrEmpty(userRole) && userRole.ToLower() == "admin";
+        
+        // Check if user wants to see all documents (admin only)
+        var showAll = Request.Query["showAll"].ToString().ToLower() == "true";
+        
         var filter = new DocumentFilterRequest
         {
             SubjectId = subjectId,
@@ -72,10 +92,66 @@ public class DocumentsController : ControllerBase
             SortBy = sortBy,
             SortOrder = sortOrder,
             Page = page,
-            PageSize = pageSize
+            PageSize = pageSize,
+            // Admins see all documents including pending; regular users only see approved
+            IncludeUnapproved = (isAdmin && showAll)
         };
 
         // Only show approved documents to regular users
+        var documents = await _documentService.GetFilteredDocumentsAsync(filter);
+        var totalCount = await _documentService.GetTotalCountAsync(filter);
+
+        return Ok(new
+        {
+            success = true,
+            data = documents,
+            pagination = new
+            {
+                currentPage = page,
+                pageSize,
+                totalItems = totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            },
+            isAdmin = isAdmin
+        });
+    }
+
+    /// <summary>
+    /// Lấy tất cả tài liệu bao gồm cả chưa duyệt (Admin only)
+    /// </summary>
+    [HttpGet("all")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> GetAllDocuments(
+        [FromQuery] int? subjectId,
+        [FromQuery] int? topicId,
+        [FromQuery] int? minQuestionCount,
+        [FromQuery] int? maxQuestionCount,
+        [FromQuery] int? gradeLevel,
+        [FromQuery] string? documentType,
+        [FromQuery] string? keyword,
+        [FromQuery] string? moderationStatus,
+        [FromQuery] string? sortBy = "created_at",
+        [FromQuery] string? sortOrder = "desc",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var filter = new DocumentFilterRequest
+        {
+            SubjectId = subjectId,
+            TopicId = topicId,
+            MinQuestionCount = minQuestionCount,
+            MaxQuestionCount = maxQuestionCount,
+            GradeLevel = gradeLevel,
+            DocumentType = documentType,
+            Keyword = keyword,
+            ModerationStatus = moderationStatus,
+            IncludeUnapproved = true,
+            SortBy = sortBy,
+            SortOrder = sortOrder,
+            Page = page,
+            PageSize = pageSize
+        };
+
         var documents = await _documentService.GetFilteredDocumentsAsync(filter);
         var totalCount = await _documentService.GetTotalCountAsync(filter);
 
@@ -112,7 +188,8 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo tài liệu mới (yêu cầu đăng nhập)
+    /// Tạo tài liệu mới (yêu cầu đăng nhập - bất kỳ user nào cũng có thể upload)
+    /// Tài liệu sẽ có trạng thái "pending" và chờ admin duyệt
     /// </summary>
     [HttpPost]
     [Authorize]
@@ -133,7 +210,11 @@ public class DocumentsController : ControllerBase
 
         var document = await _documentService.CreateDocumentAsync(request, userId, userName);
 
-        return Ok(new { success = true, message = "Tạo tài liệu thành công", data = document });
+        return Ok(new { 
+            success = true, 
+            message = "Tạo tài liệu thành công! Tài liệu đang chờ admin duyệt và sẽ hiển thị sau khi được phê duyệt.", 
+            data = document 
+        });
     }
 
     /// <summary>
@@ -261,7 +342,7 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>
-    /// Lấy tài liệu của người dùng hiện tại
+    /// Lấy tài liệu của người dùng hiện tại (bao gồm cả đang chờ duyệt)
     /// </summary>
     [HttpGet("my-documents")]
     [Authorize]
@@ -281,8 +362,11 @@ public class DocumentsController : ControllerBase
             PageSize = pageSize
         };
 
+        // Get all documents (including pending) and filter by user
+        filter.IncludeUnapproved = true;
+        
         var allDocuments = await _documentService.GetFilteredDocumentsAsync(filter);
-        var myDocuments = allDocuments.FindAll(d => d.SharedByUserId == userId.Value);
+        var myDocuments = allDocuments.Where(d => d.SharedByUserId == userId.Value).ToList();
 
         return Ok(new { success = true, data = myDocuments });
     }
@@ -299,10 +383,10 @@ public class DocumentsController : ControllerBase
             return BadRequest(new { success = false, message = "Không có file nào được chọn" });
         }
 
-        // Validate file size (max 50MB)
-        if (file.Length > 50 * 1024 * 1024)
+        // Validate file size (max 100MB)
+        if (file.Length > 100 * 1024 * 1024)
         {
-            return BadRequest(new { success = false, message = "File quá lớn. Kích thước tối đa là 50MB" });
+            return BadRequest(new { success = false, message = "File quá lớn. Kích thước tối đa là 100MB" });
         }
 
         // Validate file type

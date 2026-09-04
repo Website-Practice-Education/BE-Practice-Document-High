@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.OpenApi.Models;
+using Website_Documents.API.Data;
 using Website_Documents.API.Hubs;
 using Website_Documents.API.Middleware;
 using Website_Documents.API.Services;
@@ -63,8 +64,18 @@ builder.Services.AddScoped<IRoomSettingsService, RoomSettingsService>();
 // Shared Documents Service
 builder.Services.AddScoped<ISharedDocumentService, SharedDocumentService>();
 
-// Local Storage Service
-builder.Services.AddSingleton<IStorageService, LocalStorageService>();
+// Storage Service (auto-detect based on config)
+var storageProvider = builder.Configuration["Storage:Provider"] ?? "local";
+if (storageProvider.Equals("neon", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IStorageService, NeonStorageService>();
+    Console.WriteLine("Using Neon Storage for file uploads");
+}
+else
+{
+    builder.Services.AddSingleton<IStorageService, LocalStorageService>();
+    Console.WriteLine("Using Local Storage for file uploads");
+}
 
 // Forum Service
 builder.Services.AddScoped<IForumService, ForumService>();
@@ -75,6 +86,10 @@ builder.Services.AddScoped<ICallService, CallService>();
 
 // Gemini AI Service
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
+
+// Gamification Services (XP, Achievement, Leaderboard)
+builder.Services.AddScoped<IAchievementService, AchievementService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
 
 // Register Repositories
 builder.Services.AddScoped<ILiveSessionRepository, LiveSessionRepository>();
@@ -100,6 +115,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false; // Giữ nguyên tên claim gốc (NameIdentifier) thay vì map sang "sub"
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -144,16 +160,17 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials()
-            .SetIsOriginAllowed(host => true); // Cho phép tất cả origins trong development
+            .AllowCredentials();
+        // Note: SetIsOriginAllowed removed — origins are explicitly listed above.
+        // For production, replace with specific domain origins instead of wildcard.
     });
 });
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Xử lý vòng lặp navigation property (Subject -> SharedDocuments -> Subject)
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+        // Xử lý vòng lặp navigation property - dùng IgnoreCycles thay vì Preserve
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.WriteIndented = false;
     });
 
@@ -224,5 +241,26 @@ app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<LiveSessionHub>("/hubs/live-session");
 app.MapHub<CallHub>("/hubs/call");
+
+// Seed database
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<BookstoreDbContext>();
+    try
+    {
+        // Apply pending migrations
+        await context.Database.MigrateAsync();
+        
+        // Seed data
+        await UserSeeder.SeedUsersAsync(context);
+        await DocumentSeeder.SeedDocumentsAsync(context);
+        
+        Console.WriteLine("Database seeded successfully!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Database seeding error: {ex.Message}");
+    }
+}
 
 app.Run();

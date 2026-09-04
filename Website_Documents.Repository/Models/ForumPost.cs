@@ -16,22 +16,30 @@ public class ForumPost
 
     [Required]
     [MaxLength(500)]
+    [Column("content")]
     public string Content { get; set; } = string.Empty;
-
+    
     [MaxLength(2000)]
+    [Column("image_url")]
     public string? DocumentUrl { get; set; }
     
-    [MaxLength(500)]
+    // SharedLink is not in the database schema - this will be ignored or you need to add the column
+    [NotMapped]
     public string? SharedLink { get; set; }
 
+    [Column("like_count")]
     public int LikeCount { get; set; } = 0;
 
+    [Column("comment_count")]
     public int CommentCount { get; set; } = 0;
 
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
 
+    [Column("is_deleted")]
     public bool IsDeleted { get; set; } = false;
 
     // Navigation properties
@@ -58,10 +66,13 @@ public class ForumComment
 
     [Required]
     [MaxLength(1000)]
+    [Column("content")]
     public string Content { get; set; } = string.Empty;
 
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("is_deleted")]
     public bool IsDeleted { get; set; } = false;
 }
 
@@ -82,6 +93,7 @@ public class ForumLike
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Unique constraint: one user can like a post only once

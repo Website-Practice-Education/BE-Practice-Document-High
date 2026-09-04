@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using Website_Documents.Service.Interfaces;
 
 namespace Website_Documents.API.Hubs;
@@ -11,14 +13,16 @@ namespace Website_Documents.API.Hubs;
 public class CallHub : Hub
 {
     private readonly ICallService _callService;
+    private readonly ILogger<CallHub> _logger;
     
     // Track user connections per call session
     private static readonly ConcurrentDictionary<string, string> ConnectionToRoom = new();
     private static readonly ConcurrentDictionary<string, long> ConnectionToUser = new();
 
-    public CallHub(ICallService callService)
+    public CallHub(ICallService callService, ILogger<CallHub> logger)
     {
         _callService = callService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -95,47 +99,82 @@ public class CallHub : Hub
 
     /// <summary>
     /// Send WebRTC offer to a specific user
+    /// Only allowed if caller is in the same call session as target
     /// </summary>
-    public async Task SendOffer(long targetUserId, object offer)
+    public async Task SendOffer(long targetUserId, long sessionId, object offer)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return;
 
+        // Verify both users are in the same call session
+        if (!IsUserInSession(userId.Value, sessionId) || !IsUserInSession(targetUserId, sessionId))
+        {
+            await Clients.Caller.SendAsync("CallError", "User is not in this call session.");
+            return;
+        }
+
         await Clients.Group($"user_{targetUserId}").SendAsync("ReceiveOffer", new
         {
             fromUserId = userId.Value,
+            sessionId,
             offer
         });
     }
 
     /// <summary>
     /// Send WebRTC answer to a specific user
+    /// Only allowed if caller is in the same call session as target
     /// </summary>
-    public async Task SendAnswer(long targetUserId, object answer)
+    public async Task SendAnswer(long targetUserId, long sessionId, object answer)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return;
 
+        // Verify both users are in the same call session
+        if (!IsUserInSession(userId.Value, sessionId) || !IsUserInSession(targetUserId, sessionId))
+        {
+            await Clients.Caller.SendAsync("CallError", "User is not in this call session.");
+            return;
+        }
+
         await Clients.Group($"user_{targetUserId}").SendAsync("ReceiveAnswer", new
         {
             fromUserId = userId.Value,
+            sessionId,
             answer
         });
     }
 
     /// <summary>
     /// Send ICE candidate to a specific user
+    /// Only allowed if both users are in the same call session
     /// </summary>
-    public async Task SendIceCandidate(long targetUserId, object candidate)
+    public async Task SendIceCandidate(long targetUserId, long sessionId, object candidate)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return;
 
+        // Verify both users are in the same call session
+        if (!IsUserInSession(userId.Value, sessionId) || !IsUserInSession(targetUserId, sessionId))
+        {
+            return; // Silently ignore - not a security risk but prevents spam
+        }
+
         await Clients.Group($"user_{targetUserId}").SendAsync("ReceiveIceCandidate", new
         {
             fromUserId = userId.Value,
+            sessionId,
             candidate
         });
+    }
+
+    /// <summary>
+    /// Check if a user is in a specific call session
+    /// </summary>
+    private bool IsUserInSession(long userId, long sessionId)
+    {
+        var roomName = $"call_{sessionId}";
+        return ConnectionToUser.Any(kvp => kvp.Value == userId && ConnectionToRoom.TryGetValue(kvp.Key, out var room) && room == roomName);
     }
 
     /// <summary>
@@ -283,33 +322,46 @@ public class CallHub : Hub
         if (userId.HasValue)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId.Value}");
+            _logger.LogInformation("User {UserId} connected to CallHub with connectionId {ConnectionId}", 
+                userId.Value, Context.ConnectionId);
         }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        var userId = ConnectionToUser.TryRemove(Context.ConnectionId, out var uid) ? uid : (long?)null;
+        
+        if (exception != null)
+        {
+            _logger.LogWarning(exception, "User {UserId} disconnected from CallHub with error", userId?.ToString() ?? "anonymous");
+        }
+        else
+        {
+            _logger.LogInformation("User {UserId} disconnected from CallHub", userId?.ToString() ?? "anonymous");
+        }
+
         // Handle disconnect - update connection status for any active calls
         if (ConnectionToRoom.TryRemove(Context.ConnectionId, out var roomName))
         {
-            if (ConnectionToUser.TryRemove(Context.ConnectionId, out var userId))
+            // Update connection status to disconnected
+            if (roomName.StartsWith("call_") && long.TryParse(roomName.Replace("call_", ""), out var sessionId))
             {
-                // Update connection status to disconnected
-                if (roomName.StartsWith("call_") && long.TryParse(roomName.Replace("call_", ""), out var sessionId))
+                try
                 {
-                    try
+                    if (userId.HasValue)
                     {
-                        await _callService.UpdateConnectionStatusAsync(sessionId, userId, "disconnected");
+                        await _callService.UpdateConnectionStatusAsync(sessionId, userId.Value, "disconnected");
                         
                         await Clients.OthersInGroup(roomName).SendAsync("ParticipantConnectionStatusChanged", new
                         {
-                            userId = userId,
+                            userId = userId.Value,
                             status = "disconnected"
                         });
                     }
-                    catch
-                    {
-                        // Ignore errors during disconnect
-                    }
+                }
+                catch
+                {
+                    // Ignore errors during disconnect
                 }
             }
         }

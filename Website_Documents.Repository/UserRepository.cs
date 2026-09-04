@@ -20,7 +20,11 @@ public class UserRepository : IUserRepository
 
     public async Task<List<User>> GetAllAsync()
     {
-        return await _context.Users.ToListAsync();
+        var count = await _context.Users.CountAsync();
+        Console.WriteLine($"[DEBUG UserRepository] Total users in DB: {count}");
+        var users = await _context.Users.ToListAsync();
+        Console.WriteLine($"[DEBUG UserRepository] GetAllAsync returned {users.Count} users");
+        return users;
     }
 
     public async Task<User?> GetByIdAsync(long id)

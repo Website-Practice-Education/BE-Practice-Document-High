@@ -52,6 +52,16 @@ public partial class User
     [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
 
+    // Gamification fields
+    [Column("total_xp")]
+    public int? TotalXp { get; set; }
+
+    [Column("current_level")]
+    public int? CurrentLevel { get; set; }
+
+    [Column("current_streak")]
+    public int? CurrentStreak { get; set; }
+
     [InverseProperty("CreatedByNavigation")]
     public virtual ICollection<Exam> Exams { get; set; } = new List<Exam>();
 

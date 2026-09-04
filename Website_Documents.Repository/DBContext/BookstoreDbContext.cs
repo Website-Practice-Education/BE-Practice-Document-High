@@ -110,6 +110,9 @@ public partial class BookstoreDbContext : DbContext
 
     public virtual DbSet<CallParticipant> CallParticipants { get; set; }
 
+    // Gamification
+    public virtual DbSet<XpTransaction> XpTransactions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Achievement>(entity =>
@@ -270,6 +273,9 @@ public partial class BookstoreDbContext : DbContext
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.Role).HasDefaultValueSql("'student'::character varying");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(e => e.TotalXp).HasDefaultValue(0);
+            entity.Property(e => e.CurrentLevel).HasDefaultValue(1);
+            entity.Property(e => e.CurrentStreak).HasDefaultValue(0);
         });
 
         modelBuilder.Entity<UserAchievement>(entity =>
@@ -780,6 +786,18 @@ public partial class BookstoreDbContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("forum_posts_pkey");
 
+            entity.ToTable("forum_posts");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Content).HasColumnName("content");
+            entity.Property(e => e.DocumentUrl).HasColumnName("image_url");
+            entity.Property(e => e.LikeCount).HasColumnName("like_count");
+            entity.Property(e => e.CommentCount).HasColumnName("comment_count");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.LikeCount).HasDefaultValue(0);
@@ -793,6 +811,15 @@ public partial class BookstoreDbContext : DbContext
         modelBuilder.Entity<ForumComment>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("forum_comments_pkey");
+
+            entity.ToTable("forum_comments");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.PostId).HasColumnName("post_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.Content).HasColumnName("content");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
@@ -809,6 +836,13 @@ public partial class BookstoreDbContext : DbContext
         modelBuilder.Entity<ForumLike>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("forum_likes_pkey");
+
+            entity.ToTable("forum_likes");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.PostId).HasColumnName("post_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
 
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
 

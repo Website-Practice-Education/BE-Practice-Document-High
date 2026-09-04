@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -26,7 +27,9 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        Console.WriteLine("[DEBUG] GetAll called");
         var users = await _userService.GetAllUsersAsync();
+        Console.WriteLine($"[DEBUG] GetAll returned {users?.Count ?? 0} users");
         return Ok(users);
     }
 
@@ -257,6 +260,32 @@ public class UsersController : ControllerBase
     {
         var deactivatedCount = await _userService.DeactivateInactiveUsersAsync(inactiveDays);
         return Ok(new { message = $"Deactivated {deactivatedCount} inactive users" });
+    }
+
+    // ===== Seed Data =====
+    [HttpPost("seed")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SeedUsers()
+    {
+        try
+        {
+            var context = HttpContext.RequestServices.GetService<Website_Documents.Repository.DBContext.BookstoreDbContext>();
+            if (context == null)
+                return StatusCode(500, new { message = "Database context not available" });
+
+            var existingUsers = await _userService.GetTotalUsersCountAsync();
+            if (existingUsers > 0)
+            {
+                return Ok(new { message = $"Database already has {existingUsers} users. No seeding needed." });
+            }
+
+            await Data.UserSeeder.SeedUsersAsync(context);
+            return Ok(new { message = "Successfully seeded 10 test users!" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Seed failed: {ex.Message}" });
+        }
     }
 }
 

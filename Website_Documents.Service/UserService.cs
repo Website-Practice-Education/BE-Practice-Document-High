@@ -23,7 +23,10 @@ public class UserService : IUserService
 
     public async Task<List<User>> GetAllUsersAsync()
     {
-        return await _unitOfWork.Users.GetAllAsync();
+        Console.WriteLine("[DEBUG UserService] GetAllUsersAsync called");
+        var users = await _unitOfWork.Users.GetAllAsync();
+        Console.WriteLine($"[DEBUG UserService] GetAllUsersAsync returned {users?.Count ?? 0} users");
+        return users;
     }
 
     public async Task<User?> GetUserByIdAsync(long id)

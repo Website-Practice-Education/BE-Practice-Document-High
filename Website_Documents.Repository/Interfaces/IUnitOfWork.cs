@@ -13,6 +13,13 @@ public interface IUnitOfWork : IDisposable
     IFriendshipRepository Friendships { get; }
     IPasswordResetTokenRepository PasswordResetTokens { get; }
 
+    /// <summary>
+    /// Underlying EF Core <see cref="Microsoft.EntityFrameworkCore.DbContext"/>,
+    /// exposed for advanced scenarios such as executing raw SQL that needs to
+    /// bypass identity-column generation logic.
+    /// </summary>
+    Microsoft.EntityFrameworkCore.DbContext Context { get; }
+
     Task<int> SaveChangesAsync();
     Task BeginTransactionAsync();
     Task CommitTransactionAsync();

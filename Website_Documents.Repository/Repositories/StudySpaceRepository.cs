@@ -64,7 +64,17 @@ public class StudySpaceRepository : IStudySpaceRepository
 
     public async Task UpdateAsync(StudySpace space)
     {
-        _context.StudySpaces.Update(space);
+        // Detach any tracked entity with the same ID to avoid conflicts
+        var tracked = _context.StudySpaces.Local.FirstOrDefault(e => e.Id == space.Id);
+        if (tracked != null)
+            _context.Entry(tracked).State = EntityState.Detached;
+
+        // Attach and only mark scalar properties as modified (not navigation properties)
+        _context.StudySpaces.Attach(space);
+        _context.Entry(space).Property(x => x.Name).IsModified = true;
+        _context.Entry(space).Property(x => x.Description).IsModified = true;
+        _context.Entry(space).Property(x => x.SpaceType).IsModified = true;
+
         await _context.SaveChangesAsync();
     }
 

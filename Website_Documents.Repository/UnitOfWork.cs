@@ -57,6 +57,9 @@ public class UnitOfWork : IUnitOfWork
     public IPasswordResetTokenRepository PasswordResetTokens =>
         _passwordResetTokens ??= new PasswordResetTokenRepository(_context);
 
+    /// <inheritdoc />
+    public DbContext Context => _context;
+
     public async Task<int> SaveChangesAsync()
     {
         return await _context.SaveChangesAsync();
