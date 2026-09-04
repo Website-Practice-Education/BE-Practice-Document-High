@@ -3,24 +3,25 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Website_Documents.API.Data;
+using Website_Documents.Repository.Interfaces;
+using Website_Documents.Repository.Models;
 using Website_Documents.Service.Interfaces;
 
 namespace Website_Documents.Service;
 
 public class LeaderboardService : ILeaderboardService
 {
-    private readonly AppDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public LeaderboardService(AppDbContext context)
+    public LeaderboardService(IUnitOfWork unitOfWork)
     {
-        _context = context;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<List<object>> GetGlobalLeaderboardAsync(int limit = 50)
     {
-        var leaderboard = await _context.Users
-            .Where(u => u.IsActive && (u.TotalXp ?? 0) > 0)
+        var leaderboard = await _unitOfWork.Context.Set<User>()
+            .Where(u => (u.IsActive == true || u.IsActive == null) && (u.TotalXp ?? 0) > 0)
             .OrderByDescending(u => u.TotalXp ?? 0)
             .Take(limit)
             .Select((u, index) => new
@@ -32,9 +33,9 @@ public class LeaderboardService : ILeaderboardService
                 TotalXp = u.TotalXp ?? 0,
                 Level = CalculateLevel(u.TotalXp ?? 0),
                 Streak = u.CurrentStreak ?? 0,
-                QuestionsAnswered = _context.UserAnswers
-                    .Count(ua => ua.Attempt.UserId == u.Id),
-                ExamsCompleted = _context.UserAttempts
+                QuestionsAnswered = _unitOfWork.Context.Set<UserAnswer>()
+                    .Count(ua => ua.Attempt != null && ua.Attempt.UserId == u.Id),
+                ExamsCompleted = _unitOfWork.Context.Set<UserAttempt>()
                     .Count(ua => ua.UserId == u.Id && ua.Status == "completed")
             })
             .ToListAsync();
@@ -46,7 +47,7 @@ public class LeaderboardService : ILeaderboardService
     {
         var weekStart = DateTime.UtcNow.Date.AddDays(-(int)DateTime.UtcNow.DayOfWeek);
         
-        var leaderboard = await _context.XpTransactions
+        var leaderboard = await _unitOfWork.Context.Set<XpTransaction>()
             .Where(x => x.CreatedAt >= weekStart && x.Reason != "achievement")
             .GroupBy(x => x.UserId)
             .Select(g => new
@@ -62,7 +63,7 @@ public class LeaderboardService : ILeaderboardService
         var rank = 1;
         foreach (var item in leaderboard)
         {
-            var user = await _context.Users.FindAsync(item.UserId);
+            var user = await _unitOfWork.Users.GetByIdAsync(item.UserId);
             if (user != null)
             {
                 result.Add(new
@@ -86,7 +87,7 @@ public class LeaderboardService : ILeaderboardService
     {
         var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         
-        var leaderboard = await _context.XpTransactions
+        var leaderboard = await _unitOfWork.Context.Set<XpTransaction>()
             .Where(x => x.CreatedAt >= monthStart && x.Reason != "achievement")
             .GroupBy(x => x.UserId)
             .Select(g => new
@@ -102,7 +103,7 @@ public class LeaderboardService : ILeaderboardService
         var rank = 1;
         foreach (var item in leaderboard)
         {
-            var user = await _context.Users.FindAsync(item.UserId);
+            var user = await _unitOfWork.Users.GetByIdAsync(item.UserId);
             if (user != null)
             {
                 result.Add(new
@@ -124,12 +125,12 @@ public class LeaderboardService : ILeaderboardService
 
     public async Task<object?> GetUserRankAsync(long userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
         var totalXp = user.TotalXp ?? 0;
-        var rank = await _context.Users
-            .CountAsync(u => u.IsActive && (u.TotalXp ?? 0) > totalXp);
+        var rank = await _unitOfWork.Context.Set<User>()
+            .CountAsync(u => (u.IsActive == true || u.IsActive == null) && (u.TotalXp ?? 0) > totalXp);
 
         return new
         {
@@ -154,18 +155,18 @@ public class LeaderboardService : ILeaderboardService
 
     public async Task<int?> GetUserGlobalRankAsync(long userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
         var totalXp = user.TotalXp ?? 0;
-        return await _context.Users
-            .CountAsync(u => u.IsActive && (u.TotalXp ?? 0) > totalXp) + 1;
+        return await _unitOfWork.Context.Set<User>()
+            .CountAsync(u => (u.IsActive == true || u.IsActive == null) && (u.TotalXp ?? 0) > totalXp) + 1;
     }
 
     private async Task<List<object>> GetTopByStreakAsync(int limit)
     {
-        return await _context.Users
-            .Where(u => u.IsActive && (u.CurrentStreak ?? 0) > 0)
+        var users = await _unitOfWork.Context.Set<User>()
+            .Where(u => (u.IsActive == true || u.IsActive == null) && (u.CurrentStreak ?? 0) > 0)
             .OrderByDescending(u => u.CurrentStreak ?? 0)
             .Take(limit)
             .Select((u, index) => new
@@ -178,20 +179,22 @@ public class LeaderboardService : ILeaderboardService
                 Level = CalculateLevel(u.TotalXp ?? 0),
                 Streak = u.CurrentStreak ?? 0
             })
-            .ToListAsync()
-            .ContinueWith(t => t.Result.Cast<object>().ToList());
+            .ToListAsync();
+
+        return users.Cast<object>().ToList();
     }
 
     private async Task<List<object>> GetTopByQuestionsAsync(int limit)
     {
-        var results = await _context.UserAnswers
-            .GroupBy(ua => ua.Attempt.UserId)
+        var results = await _unitOfWork.Context.Set<UserAnswer>()
+            .GroupBy(ua => ua.Attempt != null ? ua.Attempt.UserId : 0)
             .Select(g => new
             {
                 UserId = g.Key,
                 QuestionsAnswered = g.Count(),
                 CorrectAnswers = g.Count(ua => ua.IsCorrect == true)
             })
+            .Where(x => x.UserId != 0)
             .OrderByDescending(x => x.QuestionsAnswered)
             .Take(limit)
             .ToListAsync();
@@ -200,7 +203,7 @@ public class LeaderboardService : ILeaderboardService
         var rank = 1;
         foreach (var item in results)
         {
-            var user = await _context.Users.FindAsync(item.UserId);
+            var user = await _unitOfWork.Users.GetByIdAsync(item.UserId);
             if (user != null)
             {
                 result.Add(new
