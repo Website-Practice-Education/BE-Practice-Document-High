@@ -222,10 +222,10 @@ public class ReviewService : IReviewService
             .Where(c => c.UserId == userId)
             .ToListAsync();
 
-        var weekAgo = DateTime.UtcNow.AddDays(-7);
+        var weekAgo = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7).Date);
         var dailyStats = await _context.UserDailyProgresses
-            .Where(p => p.UserId == userId && p.Date >= weekAgo)
-            .OrderBy(p => p.Date)
+            .Where(p => p.UserId == userId && p.ProgressDate >= weekAgo)
+            .OrderBy(p => p.ProgressDate)
             .ToListAsync();
 
         var weakQuestionIds = allCards
@@ -305,14 +305,14 @@ public class ReviewService : IReviewService
 
     private int CalculateStudyStreak(long userId)
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var streak = 0;
 
         for (int i = 0; i <= 365; i++)
         {
-            var date = today.AddDays(-i);
+            var date = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-i));
             var hasActivity = _context.UserDailyProgresses
-                .Any(p => p.UserId == userId && p.Date == date && p.QuestionsAnswered > 0);
+                .Any(p => p.UserId == userId && p.ProgressDate == date && p.QuestionsAnswered > 0);
 
             if (hasActivity)
                 streak++;

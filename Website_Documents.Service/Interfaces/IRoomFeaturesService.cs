@@ -8,6 +8,8 @@ public interface IRoomMusicService
 {
     Task<IEnumerable<RoomMusicTrack>> GetTracksAsync(long spaceId);
     Task<RoomMusicTrack> AddTrackAsync(long spaceId, long userId, string title, string? artist, string sourceType, string? filePath, string? externalUrl, int durationSeconds);
+    Task<RoomMusicTrack?> GetTrackByIdAsync(long trackId);
+    Task<bool> UpdateTrackAsync(long trackId, long userId, string? title, string? artist);
     Task<bool> DeleteTrackAsync(long trackId, long userId);
     Task<string> UploadMusicFileAsync(long userId, byte[] fileData, string fileName);
 }

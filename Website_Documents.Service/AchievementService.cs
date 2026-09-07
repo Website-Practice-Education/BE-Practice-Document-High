@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Website_Documents.Repository.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Website_Documents.Repository.DBContext;
 using Website_Documents.Repository.Models;
 using Website_Documents.Service.Interfaces;
 
@@ -11,198 +11,142 @@ namespace Website_Documents.Service;
 
 public class AchievementService : IAchievementService
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly BookstoreDbContext _context;
 
-    public AchievementService(IUnitOfWork unitOfWork)
+    public AchievementService(BookstoreDbContext context)
     {
-        _unitOfWork = unitOfWork;
+        _context = context;
     }
 
-    public async Task<List<object>> GetAllAchievementsAsync()
+    public async Task<IEnumerable<Achievement>> GetAllAchievementsAsync()
     {
-        var achievements = await _unitOfWork.Context.Set<Achievement>()
-            .Where(a => a.IsActive == true || a.IsActive == null)
-            .OrderBy(a => a.ConditionValue)
-            .Select(a => new
-            {
-                a.Id,
-                a.Code,
-                a.Name,
-                a.Description,
-                a.IconUrl,
-                a.XpReward,
-                a.ConditionType,
-                a.ConditionValue,
-                a.IsActive
-            })
+        return await _context.Achievements
+            .OrderBy(a => a.Id)
             .ToListAsync();
-
-        return achievements.Cast<object>().ToList();
     }
 
-    public async Task<List<object>> GetUserAchievementsAsync(long userId)
+    public async Task<IEnumerable<Achievement>> GetActiveAchievementsAsync()
     {
-        var userAchievements = await _unitOfWork.Context.Set<UserAchievement>()
+        return await _context.Achievements
+            .Where(a => a.IsActive == true)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+    }
+
+    public async Task<Achievement?> GetAchievementByIdAsync(int id)
+    {
+        return await _context.Achievements.FindAsync(id);
+    }
+
+    public async Task<Achievement?> GetAchievementByCodeAsync(string code)
+    {
+        return await _context.Achievements
+            .FirstOrDefaultAsync(a => a.Code == code);
+    }
+
+    public async Task<IEnumerable<UserAchievement>> GetUserAchievementsAsync(long userId)
+    {
+        return await _context.UserAchievements
             .Include(ua => ua.Achievement)
             .Where(ua => ua.UserId == userId)
             .OrderByDescending(ua => ua.AchievedAt)
-            .Select(ua => new
-            {
-                ua.AchievementId,
-                AchievedAt = ua.AchievedAt.HasValue ? ua.AchievedAt.Value.ToString("yyyy-MM-ddTHH:mm:ssZ") : null,
-                Achievement = new
-                {
-                    ua.Achievement.Id,
-                    ua.Achievement.Code,
-                    ua.Achievement.Name,
-                    ua.Achievement.Description,
-                    ua.Achievement.IconUrl,
-                    ua.Achievement.XpReward,
-                    ua.Achievement.ConditionType,
-                    ua.Achievement.ConditionValue,
-                    ua.Achievement.IsActive
-                }
-            })
             .ToListAsync();
-
-        return userAchievements.Cast<object>().ToList();
     }
 
-    public async Task<List<object>> CheckAndAwardAchievementsAsync(long userId)
+    public async Task<bool> AwardAchievementAsync(long userId, int achievementId)
     {
-        var newlyUnlocked = new List<object>();
-        
-        // Get user stats
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (user == null) return newlyUnlocked;
+        // Check if already awarded
+        var existing = await _context.UserAchievements
+            .FirstOrDefaultAsync(ua => ua.UserId == userId && ua.AchievementId == achievementId);
 
-        // Get total questions answered
-        var totalQuestions = await _unitOfWork.Context.Set<UserAnswer>()
-            .Where(ua => ua.Attempt != null && ua.Attempt.UserId == userId)
-            .CountAsync();
+        if (existing != null)
+            return false;
 
-        // Get exams completed
-        var totalExams = await _unitOfWork.Context.Set<UserAttempt>()
-            .Where(ua => ua.UserId == userId && ua.Status == "completed")
-            .CountAsync();
+        var achievement = await _context.Achievements.FindAsync(achievementId);
+        if (achievement == null)
+            return false;
 
-        // Get current streak
-        var currentStreak = user.CurrentStreak ?? 0;
+        var userAchievement = new UserAchievement
+        {
+            UserId = userId,
+            AchievementId = achievementId,
+            AchievedAt = DateTime.UtcNow
+        };
 
-        // Get spaces joined
-        var spacesJoined = await _unitOfWork.StudySpaceMembers.GetUserMembershipsAsync(userId);
-        var spacesJoinedCount = spacesJoined.Count;
+        _context.UserAchievements.Add(userAchievement);
 
-        // Get all available achievements not yet unlocked
-        var unlockedCodes = await _unitOfWork.Context.Set<UserAchievement>()
+        // Update user XP
+        var user = await _context.Users.FindAsync(userId);
+        if (user != null && achievement.XpReward.HasValue)
+        {
+            user.TotalXp = (user.TotalXp ?? 0) + achievement.XpReward.Value;
+        }
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<IEnumerable<Achievement>> CheckAndAwardAchievementsAsync(long userId)
+    {
+        var awardedAchievements = new List<Achievement>();
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return awardedAchievements;
+
+        // Get all active achievements not yet awarded
+        var userAchievementIds = await _context.UserAchievements
             .Where(ua => ua.UserId == userId)
-            .Include(ua => ua.Achievement)
-            .Select(ua => ua.Achievement.Code)
+            .Select(ua => ua.AchievementId)
             .ToListAsync();
 
-        var availableAchievements = await _unitOfWork.Context.Set<Achievement>()
-            .Where(a => (a.IsActive == true || a.IsActive == null) && !unlockedCodes.Contains(a.Code))
+        var availableAchievements = await _context.Achievements
+            .Where(a => a.IsActive == true && !userAchievementIds.Contains(a.Id))
             .ToListAsync();
 
         foreach (var achievement in availableAchievements)
         {
-            bool shouldUnlock = achievement.ConditionType switch
-            {
-                "questions_answered" => totalQuestions >= (achievement.ConditionValue ?? 0),
-                "exams_completed" => totalExams >= (achievement.ConditionValue ?? 0),
-                "streak_days" => currentStreak >= (achievement.ConditionValue ?? 0),
-                "spaces_joined" => spacesJoinedCount >= (achievement.ConditionValue ?? 0),
-                _ => false
-            };
+            bool shouldAward = false;
 
-            if (shouldUnlock)
+            switch (achievement.ConditionType?.ToLower())
             {
-                await UnlockAchievementAsync(userId, achievement.Code);
-                newlyUnlocked.Add(new
-                {
-                    achievement.Id,
-                    achievement.Code,
-                    achievement.Name,
-                    achievement.Description,
-                    achievement.XpReward
-                });
+                case "login_count":
+                    // Check if user has logged in enough times
+                    shouldAward = true; // Simplified - always award on check
+                    break;
+
+                case "questions_answered":
+                    var questionsAnswered = await _context.UserAnswerHistories
+                        .CountAsync(h => h.UserId == userId);
+                    shouldAward = questionsAnswered >= (achievement.ConditionValue ?? 1);
+                    break;
+
+                case "exams_completed":
+                    var examsCompleted = await _context.UserAttempts
+                        .CountAsync(a => a.UserId == userId && a.Status == "submitted");
+                    shouldAward = examsCompleted >= (achievement.ConditionValue ?? 1);
+                    break;
+
+                case "streak_days":
+                    shouldAward = (user.CurrentStreak ?? 0) >= (achievement.ConditionValue ?? 1);
+                    break;
+
+                case "perfect_score":
+                    var hasPerfectScore = await _context.UserAttempts
+                        .AnyAsync(a => a.UserId == userId && a.Score == 100);
+                    shouldAward = hasPerfectScore;
+                    break;
+
+                default:
+                    // Award any achievement without specific condition
+                    break;
+            }
+
+            if (shouldAward)
+            {
+                await AwardAchievementAsync(userId, achievement.Id);
+                awardedAchievements.Add(achievement);
             }
         }
 
-        return newlyUnlocked;
-    }
-
-    public async Task<object?> UnlockAchievementAsync(long userId, string achievementCode)
-    {
-        var achievement = await _unitOfWork.Context.Set<Achievement>()
-            .FirstOrDefaultAsync(a => a.Code == achievementCode && (a.IsActive == true || a.IsActive == null));
-
-        if (achievement == null) return null;
-
-        // Check if already unlocked
-        var existing = await _unitOfWork.Context.Set<UserAchievement>()
-            .FirstOrDefaultAsync(ua => ua.UserId == userId && ua.AchievementId == achievement.Id);
-
-        if (existing != null) return null;
-
-        // Create user achievement
-        var userAchievement = new UserAchievement
-        {
-            UserId = userId,
-            AchievementId = achievement.Id,
-            AchievedAt = DateTime.UtcNow
-        };
-
-        _unitOfWork.Context.Set<UserAchievement>().Add(userAchievement);
-
-        // Add XP reward
-        if (achievement.XpReward > 0)
-        {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
-            if (user != null)
-            {
-                user.TotalXp = (user.TotalXp ?? 0) + achievement.XpReward;
-                user.CurrentLevel = CalculateLevel(user.TotalXp ?? 0);
-
-                // Record XP transaction
-                var transaction = new XpTransaction
-                {
-                    UserId = userId,
-                    Amount = achievement.XpReward ?? 0,
-                    Reason = "achievement",
-                    SourceType = "achievement",
-                    SourceId = achievement.Id,
-                    Description = $"Unlocked achievement: {achievement.Name}",
-                    CreatedAt = DateTime.UtcNow
-                };
-                _unitOfWork.Context.Set<XpTransaction>().Add(transaction);
-            }
-        }
-
-        await _unitOfWork.SaveChangesAsync();
-
-        return new
-        {
-            achievement.Id,
-            achievement.Code,
-            achievement.Name,
-            achievement.Description,
-            achievement.XpReward,
-            AchievedAt = userAchievement.AchievedAt.HasValue ? userAchievement.AchievedAt.Value.ToString("yyyy-MM-ddTHH:mm:ssZ") : null
-        };
-    }
-
-    public async Task<int> CalculateTotalXPRewardsAsync(long userId)
-    {
-        return await _unitOfWork.Context.Set<UserAchievement>()
-            .Where(ua => ua.UserId == userId)
-            .Include(ua => ua.Achievement)
-            .SumAsync(ua => ua.Achievement.XpReward ?? 0);
-    }
-
-    private int CalculateLevel(int totalXp)
-    {
-        const int xpPerLevel = 500;
-        return (totalXp / xpPerLevel) + 1;
+        return awardedAchievements;
     }
 }

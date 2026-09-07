@@ -244,11 +244,11 @@ public class LearningPlanService : ILearningPlanService
 
     public async Task<ServiceModels.DailyGoalProgress> GetDailyGoalProgressAsync(long userId)
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
 
         var goal = await GetDailyGoalAsync(userId);
         var todayProgress = await _context.UserDailyProgresses
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.Date == today);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.ProgressDate == today);
 
         var completedQuestions = todayProgress?.QuestionsAnswered ?? 0;
         var completedMinutes = todayProgress?.TimeSpentMinutes ?? 0;
@@ -350,17 +350,17 @@ public class LearningPlanService : ILearningPlanService
 
     public async Task<ServiceModels.StudyStreak> GetStudyStreakAsync(long userId)
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var streak = 0;
         var longestStreak = 0;
-        var lastStudyDate = (DateTime?)null;
+        var lastStudyDate = (DateOnly?)null;
         var totalStudyDays = 0;
 
         for (int i = 0; i <= 365; i++)
         {
-            var date = today.AddDays(-i);
+            var date = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-i));
             var hasActivity = await _context.UserDailyProgresses
-                .AnyAsync(p => p.UserId == userId && p.Date == date && p.QuestionsAnswered > 0);
+                .AnyAsync(p => p.UserId == userId && p.ProgressDate == date && p.QuestionsAnswered > 0);
 
             if (hasActivity)
             {
@@ -384,7 +384,7 @@ public class LearningPlanService : ILearningPlanService
             UserId = userId,
             CurrentStreak = streak,
             LongestStreak = longestStreak,
-            LastStudyDate = lastStudyDate,
+            LastStudyDate = lastStudyDate?.ToDateTime(TimeOnly.MinValue),
             TotalStudyDays = totalStudyDays
         };
     }

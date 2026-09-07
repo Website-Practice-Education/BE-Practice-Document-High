@@ -132,6 +132,43 @@ public class RoomController : ControllerBase
         return Ok(ApiResponse<object>.SuccessResponse(null, "Track deleted successfully"));
     }
 
+    [HttpPut("music/{trackId}")]
+    public async Task<IActionResult> UpdateMusicTrack(long trackId, [FromBody] UpdateMusicTrackRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+
+        var success = await _musicService.UpdateTrackAsync(trackId, userId.Value, request.Title, request.Artist);
+        if (!success)
+            return BadRequest(ApiResponse<object>.ErrorResponse("Could not update track. You may not have permission or the track does not exist."));
+
+        return Ok(ApiResponse<object>.SuccessResponse(null, "Track updated successfully"));
+    }
+
+    [HttpPost("{spaceId}/music/youtube")]
+    public async Task<IActionResult> AddMusicFromYouTube(long spaceId, [FromBody] AddMusicFromYouTubeRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+
+        // YouTube URLs are stored as externalUrl with sourceType = "youtube"
+        // Duration will be estimated or can be fetched from YouTube API
+        var track = await _musicService.AddTrackAsync(
+            spaceId, userId.Value, $"YouTube Video", null, "youtube",
+            null, request.Url, 0); // Duration 0 - frontend can show "Live" or estimate
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            track.Id,
+            track.Title,
+            track.SourceType,
+            track.ExternalUrl,
+            track.DurationSeconds
+        }, "YouTube track added successfully"));
+    }
+
     #endregion
 
     #region File Sharing Endpoints
@@ -322,6 +359,18 @@ public class AddMusicLinkRequest
     public string? Artist { get; set; }
     public string Url { get; set; } = string.Empty;
     public int DurationSeconds { get; set; }
+}
+
+public class AddMusicFromYouTubeRequest
+{
+    public string Url { get; set; } = string.Empty;
+    public string? VideoId { get; set; }
+}
+
+public class UpdateMusicTrackRequest
+{
+    public string? Title { get; set; }
+    public string? Artist { get; set; }
 }
 
 public class UpdateBackgroundRequest

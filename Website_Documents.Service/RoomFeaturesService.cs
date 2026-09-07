@@ -52,6 +52,32 @@ public class RoomMusicService : IRoomMusicService
         return track;
     }
 
+    public async Task<RoomMusicTrack?> GetTrackByIdAsync(long trackId)
+    {
+        return await _context.RoomMusicTracks
+            .Include(t => t.Uploader)
+            .FirstOrDefaultAsync(t => t.Id == trackId);
+    }
+
+    public async Task<bool> UpdateTrackAsync(long trackId, long userId, string? title, string? artist)
+    {
+        var track = await _context.RoomMusicTracks
+            .FirstOrDefaultAsync(t => t.Id == trackId);
+
+        if (track == null) return false;
+
+        // Check if user is the uploader
+        if (track.UploadedBy != userId) return false;
+
+        if (!string.IsNullOrEmpty(title))
+            track.Title = title;
+        if (artist != null)
+            track.Artist = artist;
+
+        var result = await _context.SaveChangesAsync();
+        return result > 0;
+    }
+
     public async Task<bool> DeleteTrackAsync(long trackId, long userId)
     {
         var track = await _context.RoomMusicTracks

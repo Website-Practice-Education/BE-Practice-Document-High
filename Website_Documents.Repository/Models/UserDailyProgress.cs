@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 namespace Website_Documents.Repository.Models;
 
 [Table("user_daily_progress")]
-[Index("ProgressDate", Name = "idx_daily_progress_date")]
-[Index("UserId", Name = "idx_daily_progress_user")]
 [Index("UserId", "ProgressDate", Name = "user_daily_progress_user_id_progress_date_key", IsUnique = true)]
 public partial class UserDailyProgress
 {
@@ -33,7 +31,7 @@ public partial class UserDailyProgress
     [Column("questions_answered")]
     public int? QuestionsAnswered { get; set; }
 
-    [Column("questions_correct")]
+    [Column("correct_answers")]
     public int? QuestionsCorrect { get; set; }
 
     // Alias property for easier access
@@ -43,9 +41,6 @@ public partial class UserDailyProgress
         get => QuestionsCorrect;
         set => QuestionsCorrect = value;
     }
-
-    [Column("study_minutes")]
-    public int? StudyMinutes { get; set; }
 
     [Column("time_spent_minutes")]
     public int? TimeSpentMinutes { get; set; }

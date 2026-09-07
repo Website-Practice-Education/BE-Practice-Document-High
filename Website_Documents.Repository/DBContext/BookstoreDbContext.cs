@@ -368,7 +368,7 @@ public partial class BookstoreDbContext : DbContext
             entity.Property(e => e.ExamsCompleted).HasDefaultValue(0);
             entity.Property(e => e.QuestionsAnswered).HasDefaultValue(0);
             entity.Property(e => e.QuestionsCorrect).HasDefaultValue(0);
-            entity.Property(e => e.StudyMinutes).HasDefaultValue(0);
+            entity.Property(e => e.TimeSpentMinutes).HasDefaultValue(0);
             entity.Property(e => e.XpEarned).HasDefaultValue(0);
 
             entity.HasOne(d => d.User).WithMany(p => p.UserDailyProgresses).HasConstraintName("user_daily_progress_user_id_fkey");

@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.OpenApi.Models;
-using Website_Documents.API.Data;
+using Website_Documents.API.Filters;
 using Website_Documents.API.Hubs;
 using Website_Documents.API.Middleware;
 using Website_Documents.API.Services;
@@ -152,17 +153,24 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
     {
         policy.WithOrigins(
+                // Development
                 "http://localhost:3000",
                 "https://localhost:3000",
                 "https://localhost:7007",
                 "http://localhost:5173",
-                "https://localhost:5173"
+                "https://localhost:5173",
+                // Production - Vercel
+                "https://studyhubweb.vercel.app",
+                "https://studyhubweb.vercel.app/",
+                "https://studyhubweb.vercel.app/login",
+                // Production - Render
+                "https://studyhubhighedu.onrender.com",
+                "https://studyhubhighedu.onrender.com/",
+                "https://studyhubhighedu.onrender.com/api"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials();
-        // Note: SetIsOriginAllowed removed — origins are explicitly listed above.
-        // For production, replace with specific domain origins instead of wildcard.
     });
 });
 
@@ -198,6 +206,16 @@ builder.Services.AddSwaggerGen(c =>
     {
         SchemaIdSelector = type => type.FullName
     };
+
+    // Register filters for file upload handling
+    c.OperationFilter<Website_Documents.API.Filters.FormFileSwaggerFilter>();
+
+    // Exclude UploadController from Swagger (file uploads are handled via frontend)
+    c.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        var controller = apiDesc.ActionDescriptor as Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor;
+        return controller?.ControllerName != "Upload";
+    });
 });
 
 var app = builder.Build();
@@ -251,15 +269,11 @@ using (var scope = app.Services.CreateScope())
         // Apply pending migrations
         await context.Database.MigrateAsync();
         
-        // Seed data
-        await UserSeeder.SeedUsersAsync(context);
-        await DocumentSeeder.SeedDocumentsAsync(context);
-        
-        Console.WriteLine("Database seeded successfully!");
+        Console.WriteLine("Database migration completed!");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Database seeding error: {ex.Message}");
+        Console.WriteLine($"Database migration error: {ex.Message}");
     }
 }
 

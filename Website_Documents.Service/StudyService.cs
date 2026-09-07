@@ -455,14 +455,14 @@ public class StudyService : IStudyService
 
     private async Task<int> CalculateStreak(long userId)
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
         var streak = 0;
 
         for (int i = 0; i <= 365; i++)
         {
-            var date = today.AddDays(-i);
+            var date = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-i));
             var hasActivity = await _context.UserDailyProgresses
-                .AnyAsync(p => p.UserId == userId && p.Date == date && p.QuestionsAnswered > 0);
+                .AnyAsync(p => p.UserId == userId && p.ProgressDate == date && p.QuestionsAnswered > 0);
 
             if (hasActivity)
                 streak++;
