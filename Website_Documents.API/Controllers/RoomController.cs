@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 using Website_Documents.API.DTOs;
 using Website_Documents.Service.Interfaces;
 
@@ -355,32 +356,44 @@ public class RoomController : ControllerBase
 // Request DTOs
 public class AddMusicLinkRequest
 {
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+    [JsonPropertyName("artist")]
     public string? Artist { get; set; }
+    [JsonPropertyName("url")]
     public string Url { get; set; } = string.Empty;
+    [JsonPropertyName("durationSeconds")]
     public int DurationSeconds { get; set; }
 }
 
 public class AddMusicFromYouTubeRequest
 {
+    [JsonPropertyName("url")]
     public string Url { get; set; } = string.Empty;
+    [JsonPropertyName("videoId")]
     public string? VideoId { get; set; }
 }
 
 public class UpdateMusicTrackRequest
 {
+    [JsonPropertyName("title")]
     public string? Title { get; set; }
+    [JsonPropertyName("artist")]
     public string? Artist { get; set; }
 }
 
 public class UpdateBackgroundRequest
 {
+    [JsonPropertyName("backgroundType")]
     public string BackgroundType { get; set; } = "theme";
+    [JsonPropertyName("backgroundValue")]
     public string? BackgroundValue { get; set; }
+    [JsonPropertyName("backgroundImagePath")]
     public string? BackgroundImagePath { get; set; }
 }
 
 public class UpdateAccentColorRequest
 {
+    [JsonPropertyName("accentColor")]
     public string AccentColor { get; set; } = string.Empty;
 }

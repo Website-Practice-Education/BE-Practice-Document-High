@@ -23,7 +23,7 @@ public class StudySpaceRepository : IStudySpaceRepository
         return await _context.StudySpaces
             .Include(s => s.Members)
             .Include(s => s.Creator)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id && s.IsActive == true);
     }
 
     public async Task<StudySpace?> GetByInviteCodeAsync(string inviteCode)
@@ -38,7 +38,7 @@ public class StudySpaceRepository : IStudySpaceRepository
         return await _context.StudySpaces
             .Include(s => s.Members.Where(m => m.UserId == userId))
             .Include(s => s.Creator)
-            .Where(s => s.Members.Any(m => m.UserId == userId && m.IsActive == true))
+            .Where(s => s.Members.Any(m => m.UserId == userId && m.IsActive == true) && s.IsActive == true)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
@@ -110,7 +110,7 @@ public class StudySpaceMemberRepository : IStudySpaceMemberRepository
     {
         return await _context.StudySpaceMembers
             .Include(m => m.User)
-            .FirstOrDefaultAsync(m => m.SpaceId == spaceId && m.UserId == userId);
+            .FirstOrDefaultAsync(m => m.SpaceId == spaceId && m.UserId == userId && m.IsActive == true);
     }
 
     public async Task<List<StudySpaceMember>> GetSpaceMembersAsync(long spaceId)

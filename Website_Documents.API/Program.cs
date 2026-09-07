@@ -179,6 +179,7 @@ builder.Services.AddControllers()
     {
         // Xử lý vòng lặp navigation property - dùng IgnoreCycles thay vì Preserve
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.WriteIndented = false;
     });
 
