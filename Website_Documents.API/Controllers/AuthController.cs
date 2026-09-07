@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
-using Website_Documents.API.DTOs;
-using Website_Documents.Service.DTOs;
-using Website_Documents.Service.Interfaces;
-using ApiDTOs = Website_Documents.API.DTOs;
-using ServiceDTOs = Website_Documents.Service.DTOs;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
+using Website_Documents.Repository.Models;
+using Website_Documents.Repository.Interfaces;
 
 namespace Website_Documents.API.Controllers;
 
@@ -12,95 +13,200 @@ namespace Website_Documents.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IUnitOfWork unitOfWork, IConfiguration configuration)
     {
-        _authService = authService;
+        _unitOfWork = unitOfWork;
+        _configuration = configuration;
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] ServiceDTOs.RegisterRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        try
+        // Check if user already exists
+        var existingUser = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+        if (existingUser != null)
         {
-            var result = await _authService.RegisterAsync(request);
-            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Registration successful"));
+            return BadRequest(new { success = false, message = "Email đã được sử dụng" });
         }
-        catch (InvalidOperationException ex)
+
+        // Create new user
+        var user = new User
         {
-            return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
-        }
+            Email = request.Email,
+            FullName = request.FullName ?? request.Email.Split('@')[0],
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Grade = (short)(request.Grade ?? 10),
+            Role = "Student",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        await _unitOfWork.Users.CreateAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        var token = GenerateJwtToken(user);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Đăng ký thành công",
+            data = new
+            {
+                token = token,
+                email = user.Email,
+                fullName = user.FullName,
+                role = user.Role
+            }
+        });
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] ServiceDTOs.LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        try
+        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+
+        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            var result = await _authService.LoginAsync(request);
-            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Login successful"));
+            return Unauthorized(new { success = false, message = "Email hoặc mật khẩu không đúng" });
         }
-        catch (UnauthorizedAccessException ex)
+
+        var token = GenerateJwtToken(user);
+
+        return Ok(new
         {
-            return Unauthorized(ApiResponse<object>.ErrorResponse(ex.Message));
-        }
+            success = true,
+            message = "Đăng nhập thành công",
+            data = new
+            {
+                token = token,
+                email = user.Email,
+                fullName = user.FullName,
+                role = user.Role
+            }
+        });
     }
 
     [HttpPost("google")]
-    public async Task<IActionResult> GoogleLogin([FromBody] ApiDTOs.GoogleLoginRequest request)
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
         try
         {
-            var result = await _authService.GoogleLoginAsync(request.Token);
-            return Ok(ApiResponse<ServiceDTOs.LoginResponse>.SuccessResponse(result, "Google login successful"));
+            // Verify Google token
+            var googleApiUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={request.Token}";
+            using var client = new HttpClient();
+            var response = await client.GetAsync(googleApiUrl);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return Unauthorized(new { success = false, message = "Token Google không hợp lệ" });
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var tokenInfo = JsonSerializer.Deserialize<GoogleTokenInfo>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (tokenInfo == null)
+            {
+                return Unauthorized(new { success = false, message = "Không thể xác thực Google token" });
+            }
+
+            // Find or create user
+            var user = await _unitOfWork.Users.GetByEmailAsync(tokenInfo.Email);
+
+            if (user == null)
+            {
+                // Create new user from Google info
+                user = new User
+                {
+                    Email = tokenInfo.Email,
+                    FullName = tokenInfo.Name ?? tokenInfo.Email.Split('@')[0],
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    Grade = 10,
+                    Role = "Student",
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    AvatarUrl = tokenInfo.Picture
+                };
+
+                await _unitOfWork.Users.CreateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            var jwtToken = GenerateJwtToken(user);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Đăng nhập Google thành công",
+                data = new
+                {
+                    token = jwtToken,
+                    email = user.Email,
+                    fullName = user.FullName,
+                    role = user.Role
+                }
+            });
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex)
         {
-            return Unauthorized(ApiResponse<object>.ErrorResponse(ex.Message));
+            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
         }
     }
 
-    [HttpPost("change-password")]
-    public async Task<IActionResult> ChangePassword([FromBody] ServiceDTOs.ChangePasswordRequest request)
+    private string GenerateJwtToken(User user)
     {
-        var userId = GetCurrentUserId();
-        if (userId == null)
-            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+        var jwtSecret = _configuration["Jwt:Secret"] ?? "DefaultSecretKeyForJwtToken12345678901234567890";
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        try
+        var claims = new[]
         {
-            var result = await _authService.ChangePasswordAsync(userId.Value, request);
-            if (!result)
-                return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim("userId", user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.FullName ?? ""),
+            new Claim(ClaimTypes.Role, user.Role ?? "Student")
+        };
 
-            return Ok(ApiResponse<object>.SuccessResponse(null, "Password changed successfully"));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
-        }
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"] ?? "WebsiteDocuments",
+            audience: _configuration["Jwt:Audience"] ?? "WebsiteDocuments",
+            claims: claims,
+            expires: DateTime.UtcNow.AddDays(7),
+            signingCredentials: credentials
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
+}
 
-    [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile([FromBody] ServiceDTOs.UpdateProfileRequest request)
-    {
-        var userId = GetCurrentUserId();
-        if (userId == null)
-            return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
+public class LoginRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+}
 
-        var result = await _authService.UpdateProfileAsync(userId.Value, request);
-        if (!result)
-            return NotFound(ApiResponse<object>.ErrorResponse("User not found"));
+public class RegisterRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string? FullName { get; set; }
+    public int? Grade { get; set; }
+}
 
-        return Ok(ApiResponse<object>.SuccessResponse(null, "Profile updated successfully"));
-    }
+public class GoogleLoginRequest
+{
+    public string Token { get; set; } = string.Empty;
+}
 
-    private long? GetCurrentUserId()
-    {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (long.TryParse(userIdClaim, out var userId))
-            return userId;
-        return null;
-    }
+public class GoogleTokenInfo
+{
+    public string Email { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? Picture { get; set; }
 }
