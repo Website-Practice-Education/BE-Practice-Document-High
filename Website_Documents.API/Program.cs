@@ -237,10 +237,14 @@ app.Use(async (context, next) =>
     await next();
 });
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Website Documents API v1");
+        c.RoutePrefix = "swagger"; // URL: /swagger
+    });
 }
 
 app.UseCors("AllowAll");
