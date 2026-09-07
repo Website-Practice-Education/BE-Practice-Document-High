@@ -237,11 +237,11 @@ public class CallService : ICallService
             .FirstOrDefaultAsync(p => p.CallSessionId == sessionId && p.UserId == userId && p.LeaveTime == null);
 
         if (participant == null)
-            return false;
+            throw new InvalidOperationException("Participant not found in call session");
 
         participant.IsMuted = !participant.IsMuted;
         await _context.SaveChangesAsync();
-        return true;
+        return participant.IsMuted;
     }
 
     public async Task<bool> ToggleVideoAsync(long sessionId, long userId)
@@ -250,11 +250,11 @@ public class CallService : ICallService
             .FirstOrDefaultAsync(p => p.CallSessionId == sessionId && p.UserId == userId && p.LeaveTime == null);
 
         if (participant == null)
-            return false;
+            throw new InvalidOperationException("Participant not found in call session");
 
         participant.IsVideoOff = !participant.IsVideoOff;
         await _context.SaveChangesAsync();
-        return true;
+        return participant.IsVideoOff;
     }
 
     public async Task<bool> ToggleScreenShareAsync(long sessionId, long userId)
@@ -263,11 +263,11 @@ public class CallService : ICallService
             .FirstOrDefaultAsync(p => p.CallSessionId == sessionId && p.UserId == userId && p.LeaveTime == null);
 
         if (participant == null)
-            return false;
+            throw new InvalidOperationException("Participant not found in call session");
 
         participant.IsScreenSharing = !participant.IsScreenSharing;
         await _context.SaveChangesAsync();
-        return true;
+        return participant.IsScreenSharing;
     }
 
     public async Task<bool> UpdateConnectionStatusAsync(long sessionId, long userId, string status)

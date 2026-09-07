@@ -19,8 +19,11 @@ public interface ICallService
     Task<List<CallParticipantDto>> GetCallParticipantsAsync(long sessionId);
     
     // Call controls
+    // Returns the NEW state after toggling (true = isMuted, false = isUnmuted)
     Task<bool> ToggleMuteAsync(long sessionId, long userId);
+    // Returns the NEW state after toggling (true = isVideoOff, false = isVideoOn)
     Task<bool> ToggleVideoAsync(long sessionId, long userId);
+    // Returns the NEW state after toggling (true = isScreenSharing, false = not sharing)
     Task<bool> ToggleScreenShareAsync(long sessionId, long userId);
     Task<bool> UpdateConnectionStatusAsync(long sessionId, long userId, string status);
     

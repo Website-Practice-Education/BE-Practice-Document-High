@@ -113,7 +113,7 @@ public class StudySpacesController : ControllerBase
             }),
             createdAt = space.CreatedAt,
             creatorName = space.Creator?.FullName,
-            isMember = members.Exists(m => m.UserId == userId.Value)
+            isMember = members.Any(m => m.UserId == userId.Value)
         }));
     }
 

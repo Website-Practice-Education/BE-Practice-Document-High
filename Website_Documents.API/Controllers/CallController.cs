@@ -172,11 +172,15 @@ public class CallController : ControllerBase
         if (userId == null)
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
-        var success = await _callService.ToggleMuteAsync(sessionId, userId.Value);
-        if (!success)
+        try
+        {
+            var isMuted = await _callService.ToggleMuteAsync(sessionId, userId.Value);
+            return Ok(ApiResponse<object>.SuccessResponse(new { isMuted }, "Mute toggled successfully"));
+        }
+        catch (InvalidOperationException)
+        {
             return BadRequest(ApiResponse<object>.ErrorResponse("Could not toggle mute"));
-
-        return Ok(ApiResponse<object>.SuccessResponse(new { isMuted = true }, "Muted successfully"));
+        }
     }
 
     /// <summary>
@@ -189,11 +193,15 @@ public class CallController : ControllerBase
         if (userId == null)
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
-        var success = await _callService.ToggleVideoAsync(sessionId, userId.Value);
-        if (!success)
+        try
+        {
+            var isVideoOff = await _callService.ToggleVideoAsync(sessionId, userId.Value);
+            return Ok(ApiResponse<object>.SuccessResponse(new { isVideoOff }, "Video toggled successfully"));
+        }
+        catch (InvalidOperationException)
+        {
             return BadRequest(ApiResponse<object>.ErrorResponse("Could not toggle video"));
-
-        return Ok(ApiResponse<object>.SuccessResponse(new { isVideoOff = true }, "Video disabled successfully"));
+        }
     }
 
     /// <summary>
@@ -206,11 +214,15 @@ public class CallController : ControllerBase
         if (userId == null)
             return Unauthorized(ApiResponse<object>.ErrorResponse("Unauthorized"));
 
-        var success = await _callService.ToggleScreenShareAsync(sessionId, userId.Value);
-        if (!success)
+        try
+        {
+            var isScreenSharing = await _callService.ToggleScreenShareAsync(sessionId, userId.Value);
+            return Ok(ApiResponse<object>.SuccessResponse(new { isScreenSharing }, "Screen share toggled successfully"));
+        }
+        catch (InvalidOperationException)
+        {
             return BadRequest(ApiResponse<object>.ErrorResponse("Could not toggle screen share"));
-
-        return Ok(ApiResponse<object>.SuccessResponse(new { isScreenSharing = true }, "Screen sharing enabled successfully"));
+        }
     }
 
     /// <summary>
