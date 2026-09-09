@@ -124,9 +124,10 @@ public class AuthController : ControllerBase
                 if (!string.IsNullOrEmpty(request.Picture))
                 {
                     user.AvatarUrl = request.Picture;
-                    _unitOfWork.Users.Update(user);
-                    await _unitOfWork.SaveChangesAsync();
                 }
+                // Update user info
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
             }
 
             var jwtToken = GenerateJwtToken(user);
