@@ -89,6 +89,67 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("google-direct")]
+    public async Task<IActionResult> GoogleLoginDirect([FromBody] GoogleLoginDirectRequest request)
+    {
+        try
+        {
+            // Token already decoded and validated client-side
+            // Backend trusts the email from the decoded JWT
+            
+            // Find or create user
+            var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+
+            if (user == null)
+            {
+                // Create new user from Google info
+                user = new User
+                {
+                    Email = request.Email,
+                    FullName = request.Name ?? request.Email.Split('@')[0],
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    Grade = 10,
+                    Role = "Student",
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    AvatarUrl = request.Picture
+                };
+
+                await _unitOfWork.Users.CreateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            else
+            {
+                // Update avatar if provided
+                if (!string.IsNullOrEmpty(request.Picture))
+                {
+                    user.AvatarUrl = request.Picture;
+                    _unitOfWork.Users.Update(user);
+                    await _unitOfWork.SaveChangesAsync();
+                }
+            }
+
+            var jwtToken = GenerateJwtToken(user);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Đăng nhập Google thành công",
+                data = new
+                {
+                    token = jwtToken,
+                    email = user.Email,
+                    fullName = user.FullName,
+                    role = user.Role
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Lỗi server: " + ex.Message });
+        }
+    }
+
     [HttpPost("google")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
     {
@@ -206,6 +267,14 @@ public class GoogleLoginRequest
 
 public class GoogleTokenInfo
 {
+    public string Email { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? Picture { get; set; }
+}
+
+public class GoogleLoginDirectRequest
+{
+    public string Token { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Name { get; set; }
     public string? Picture { get; set; }
