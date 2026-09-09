@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
             FullName = request.FullName ?? request.Email.Split('@')[0],
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Grade = (short)(request.Grade ?? 10),
-            Role = "Student",
+            Role = "student",
             CreatedAt = DateTime.UtcNow,
             IsActive = true
         };
@@ -109,7 +109,7 @@ public class AuthController : ControllerBase
                     FullName = request.Name ?? request.Email.Split('@')[0],
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
                     Grade = 10,
-                    Role = "Student",
+                    Role = "student",
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
                     AvatarUrl = request.Picture
@@ -189,7 +189,7 @@ public class AuthController : ControllerBase
                     FullName = tokenInfo.Name ?? tokenInfo.Email.Split('@')[0],
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
                     Grade = 10,
-                    Role = "Student",
+                    Role = "student",
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
                     AvatarUrl = tokenInfo.Picture
