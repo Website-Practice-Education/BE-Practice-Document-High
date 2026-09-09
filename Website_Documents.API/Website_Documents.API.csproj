@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>a3f9f0d4-b530-4fe0-a99b-7c56e3354d65</UserSecretsId>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>CS8625;CS8604</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

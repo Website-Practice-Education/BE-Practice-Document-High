@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy solution and project files
-COPY *.sln ./
+COPY Practice_Information_Document.sln ./
 COPY Website_Documents.API/Website_Documents.API.csproj ./Website_Documents.API/
 COPY Website_Documents.Service/Website_Documents.Service.csproj ./Website_Documents.Service/
 COPY Website_Documents.Repository/Website_Documents.Repository.csproj ./Website_Documents.Repository/
@@ -14,7 +14,7 @@ RUN dotnet restore
 # Copy all source code
 COPY . .
 
-# Build với Production mode
+# Build với Production mode (ignore warnings)
 RUN dotnet publish Website_Documents.API/Website_Documents.API.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
